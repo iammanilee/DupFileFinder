@@ -7,6 +7,9 @@
 #include "DupFileFinderDlg.h"
 #include "afxdialogex.h"
 
+#include <vector>
+#include <set>
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -58,12 +61,20 @@ CDupFileFinderDlg::CDupFileFinderDlg(CWnd* pParent /*=NULL*/)
 void CDupFileFinderDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
+	DDX_Control(pDX, IDC_SRC_PATH_EDIT, SrcPathEdit);
+	DDX_Control(pDX, IDC_DEST_PATH_EDIT, DestPathEdit);
+	DDX_Control(pDX, IDC_EXTS_EDIT, ExtsEdit);
+	DDX_Control(pDX, IDC_RESULT_LIST, ResultListCtrl);
 }
 
 BEGIN_MESSAGE_MAP(CDupFileFinderDlg, CDialogEx)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
+	ON_BN_CLICKED(IDC_SRC_PATH_BROWSER_BUTTON, &CDupFileFinderDlg::OnBnClickedSrcPathBrowserButton)
+	ON_BN_CLICKED(IDC_DEST_PATH_BROWSER_BUTTON, &CDupFileFinderDlg::OnBnClickedDestPathBrowserButton)
+	ON_BN_CLICKED(IDC_FIND_BUTTON, &CDupFileFinderDlg::OnBnClickedFindButton)
+	ON_BN_CLICKED(IDC_REMVOE_BUTTON, &CDupFileFinderDlg::OnBnClickedRemvoeButton)
 END_MESSAGE_MAP()
 
 
@@ -152,3 +163,209 @@ HCURSOR CDupFileFinderDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
+
+
+void CDupFileFinderDlg::OnBnClickedSrcPathBrowserButton()
+{
+	BROWSEINFO bi = { 0 };
+	bi.lpszTitle = TEXT("Find Folder");
+
+	LPITEMIDLIST pidl = SHBrowseForFolder(&bi);
+	if (pidl != 0)
+	{
+		// get the name of the folder
+		TCHAR path[MAX_PATH];
+		if (SHGetPathFromIDList(pidl, path))
+		{
+			SrcPathEdit.SetWindowTextW(path);
+		}
+
+		// free memory used
+		IMalloc * imalloc = 0;
+		if (SUCCEEDED(SHGetMalloc(&imalloc)))
+		{
+			imalloc->Free(pidl);
+			imalloc->Release();
+		}
+	}
+}
+
+
+void CDupFileFinderDlg::OnBnClickedDestPathBrowserButton()
+{
+	BROWSEINFO bi = { 0 };
+	bi.lpszTitle = TEXT("Find Folder");
+
+	LPITEMIDLIST pidl = SHBrowseForFolder(&bi);
+	if (pidl != 0)
+	{
+		// get the name of the folder
+		TCHAR path[MAX_PATH];
+		if (SHGetPathFromIDList(pidl, path))
+		{
+			DestPathEdit.SetWindowTextW(path);
+		}
+
+		// free memory used
+		IMalloc * imalloc = 0;
+		if (SUCCEEDED(SHGetMalloc(&imalloc)))
+		{
+			imalloc->Free(pidl);
+			imalloc->Release();
+		}
+	}
+}
+
+
+void RecursiveFileFind(std::vector<CString>& outFiles, const CString& inPath, const CString& inRelPath, const CString& inFileName)
+{
+	CFileFind finder;
+
+	BOOL bWorking = (inRelPath != TEXT("")) ? finder.FindFile(inPath + TEXT("\\") + inRelPath + TEXT("\\") + inFileName) : finder.FindFile(inPath + TEXT("\\") + inFileName);
+
+	while (bWorking)
+	{
+		bWorking = finder.FindNextFile();
+		if (!finder.IsDirectory())
+		{
+			//파일의 이름
+			CString _fileName = finder.GetFileName();
+			if (inRelPath != TEXT(""))
+				outFiles.push_back(inRelPath + TEXT("\\") + _fileName);
+			else
+				outFiles.push_back(_fileName);
+		}
+		else
+		{
+			CString _fileName = finder.GetFileName();
+			if (_fileName != TEXT(".") && _fileName != TEXT(".."))
+				RecursiveFileFind(outFiles, inPath, inRelPath + TEXT("\\") + _fileName, inFileName);
+		}
+	}
+
+	bWorking = (inRelPath != TEXT("")) ? finder.FindFile(inPath + TEXT("\\") + inRelPath + TEXT("\\*")) : finder.FindFile(inPath + TEXT("\\*"));
+	while (bWorking)
+	{
+		bWorking = finder.FindNextFile();
+		if (finder.IsDirectory())
+		{
+			CString _fileName = finder.GetFileName();
+			if (_fileName != TEXT(".") && _fileName != TEXT(".."))
+				RecursiveFileFind(outFiles, inPath, inRelPath + TEXT("\\") + _fileName, inFileName);
+		}
+	}
+}
+
+// 파일명만, outFIles에 담음.
+void RecursiveFileFind(std::set<CString>& outFiles, const CString& inPath, const CString& inRelPath, const CString& inFileName)
+{
+	CFileFind finder;
+
+	BOOL bWorking = (inRelPath != TEXT("")) ? finder.FindFile(inPath + TEXT("\\") + inRelPath + TEXT("\\") + inFileName) : finder.FindFile(inPath + TEXT("\\") + inFileName);
+
+	while (bWorking)
+	{
+		bWorking = finder.FindNextFile();
+		if (!finder.IsDirectory())
+		{
+			//파일의 이름
+			CString _fileName = finder.GetFileName();
+			outFiles.insert(_fileName);
+		}
+		else
+		{
+			CString _fileName = finder.GetFileName();
+			if (_fileName != TEXT(".") && _fileName != TEXT(".."))
+				RecursiveFileFind(outFiles, inPath, inRelPath + TEXT("\\") + _fileName, inFileName);
+		}
+	}
+
+	bWorking = (inRelPath != TEXT("")) ? finder.FindFile(inPath + TEXT("\\") + inRelPath + TEXT("\\*")) : finder.FindFile(inPath + TEXT("\\*"));
+	while (bWorking)
+	{
+		bWorking = finder.FindNextFile();
+		if (finder.IsDirectory())
+		{
+			CString _fileName = finder.GetFileName();
+			if (_fileName != TEXT(".") && _fileName != TEXT(".."))
+				RecursiveFileFind(outFiles, inPath, inRelPath + TEXT("\\") + _fileName, inFileName);
+		}
+	}
+}
+
+void CDupFileFinderDlg::OnBnClickedFindButton()
+{
+	DupFilesMap.clear();
+
+	ResultListCtrl.ResetContent();
+
+	CString SrcFilePath;
+	SrcPathEdit.GetWindowText(SrcFilePath);
+
+	CString DestFilePath;
+	DestPathEdit.GetWindowText(DestFilePath);
+
+	std::vector<CString> DestFiles;
+	std::vector<CString> Exts;
+	if (!GetExts(Exts))
+	{
+		return;
+	}
+
+	for (int i = 0; i < Exts.size(); ++i)
+	{
+		const CString& Ext = Exts[i];
+		RecursiveFileFind(DestFiles, DestFilePath, TEXT(""), TEXT("*.") + Ext);
+	}
+
+	std::set<CString> SrcFiles;
+	for (int i = 0; i < Exts.size(); ++i)
+	{
+		const CString& Ext = Exts[i];
+		RecursiveFileFind(SrcFiles, SrcFilePath, TEXT(""), TEXT("*.") + Ext);
+	}
+
+	for (int i = 0; i < DestFiles.size(); ++i)
+	{
+		CString& RelDestFileName = DestFiles[i];
+
+		int FindPos = RelDestFileName.ReverseFind(TEXT('\\'));
+
+		CString DestFileName = (FindPos == -1) ? RelDestFileName : RelDestFileName.Mid(FindPos + 1);
+
+		// set으로 가져올 때도, 사실은 상대 path로 가져와서,
+		// find 할 때, 비교함수를 정의해서, 한다.
+		auto finditer = SrcFiles.find(DestFileName);
+		if (finditer != SrcFiles.end())
+		{
+			ResultListCtrl.AddString(RelDestFileName);
+
+			DupFilesMap.insert(std::pair<CString, CString>(
+				));
+		}
+	}
+}
+
+
+void CDupFileFinderDlg::OnBnClickedRemvoeButton()
+{
+	// 파일을 비교해서, 삭제한다.
+
+}
+
+bool CDupFileFinderDlg::GetExts(std::vector<CString>& OutExts)
+{
+	CString ExtsLine;
+	ExtsEdit.GetWindowText(ExtsLine);
+
+	int curPos = 0;
+
+	CString Ext = ExtsLine.Tokenize(_T(" "), curPos);
+	while (Ext != _T(""))
+	{
+		OutExts.push_back(Ext);
+		Ext = ExtsLine.Tokenize(_T(" "), curPos);
+	};
+
+	return OutExts.size() != 0;
+}

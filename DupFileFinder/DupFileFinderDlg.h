@@ -3,6 +3,10 @@
 //
 
 #pragma once
+#include "afxwin.h"
+
+#include <map>
+#include <vector>
 
 
 // CDupFileFinderDlg 대화 상자
@@ -25,10 +29,23 @@ public:
 protected:
 	HICON m_hIcon;
 
+	std::map<CString, CString> DupFilesMap;
+
+	bool GetExts(std::vector<CString>& OutExts);
+
 	// 생성된 메시지 맵 함수
 	virtual BOOL OnInitDialog();
 	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
+public:
+	afx_msg void OnBnClickedSrcPathBrowserButton();
+	afx_msg void OnBnClickedDestPathBrowserButton();
+	CEdit SrcPathEdit;
+	CEdit DestPathEdit;
+	CEdit ExtsEdit;
+	CListBox ResultListCtrl;
+	afx_msg void OnBnClickedFindButton();
+	afx_msg void OnBnClickedRemvoeButton();
 };
