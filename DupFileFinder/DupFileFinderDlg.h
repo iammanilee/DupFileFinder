@@ -48,6 +48,6 @@ public:
 	CEdit ExtsEdit;
 	CListBox ResultListCtrl;
 	afx_msg void OnBnClickedFindButton();
-	afx_msg void OnBnClickedRemvoeButton();
+	afx_msg void OnBnClickedRemoveButton();
 	CStatic InfoTextStatic;
 };

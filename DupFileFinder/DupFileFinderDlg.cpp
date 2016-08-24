@@ -7,10 +7,10 @@
 #include "DupFileFinderDlg.h"
 #include "afxdialogex.h"
 
-#include <Wincrypt.h>
-
 #include <vector>
 #include <set>
+
+#include "utils.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -77,7 +77,7 @@ BEGIN_MESSAGE_MAP(CDupFileFinderDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_SRC_PATH_BROWSER_BUTTON, &CDupFileFinderDlg::OnBnClickedSrcPathBrowserButton)
 	ON_BN_CLICKED(IDC_DEST_PATH_BROWSER_BUTTON, &CDupFileFinderDlg::OnBnClickedDestPathBrowserButton)
 	ON_BN_CLICKED(IDC_FIND_BUTTON, &CDupFileFinderDlg::OnBnClickedFindButton)
-	ON_BN_CLICKED(IDC_REMVOE_BUTTON, &CDupFileFinderDlg::OnBnClickedRemvoeButton)
+	ON_BN_CLICKED(IDC_REMVOE_BUTTON, &CDupFileFinderDlg::OnBnClickedRemoveButton)
 END_MESSAGE_MAP()
 
 
@@ -166,113 +166,9 @@ HCURSOR CDupFileFinderDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
-#define BUFSIZE 1024
-#define MD5LEN  16
 
-DWORD GetMD5(const TCHAR* InFileName, TCHAR* OutMD5Characters, TCHAR* OutErrorMessage)
-{
-	const TCHAR rgbDigits[] = TEXT("0123456789abcdef");
 
-	DWORD dwStatus = 0;
-	BOOL bResult = FALSE;
-	HCRYPTPROV hProv = 0;
-	HCRYPTHASH hHash = 0;
-	HANDLE hFile = NULL;
-	BYTE rgbFile[BUFSIZE];
-	DWORD cbRead = 0;
-	BYTE rgbHash[MD5LEN];
-	DWORD cbHash = 0;
-	// Logic to check usage goes here.
 
-	hFile = CreateFile(InFileName,
-		GENERIC_READ,
-		FILE_SHARE_READ,
-		NULL,
-		OPEN_EXISTING,
-		FILE_FLAG_SEQUENTIAL_SCAN,
-		NULL);
-
-	if (INVALID_HANDLE_VALUE == hFile)
-	{
-		dwStatus = GetLastError();
-		//_stprintf(OutErrorMessage, TEXT("Error opening file %s\nError: %d\n"), InFileName, dwStatus);
-		return dwStatus;
-	}
-
-	// Get handle to the crypto provider
-	if (!CryptAcquireContext(&hProv,
-		NULL,
-		NULL,
-		PROV_RSA_FULL,
-		CRYPT_VERIFYCONTEXT))
-	{
-		dwStatus = GetLastError();
-		//_stprintf(OutErrorMessage, TEXT("CryptAcquireContext failed: %d\n"), dwStatus);
-		CloseHandle(hFile);
-		return dwStatus;
-	}
-
-	if (!CryptCreateHash(hProv, CALG_MD5, 0, 0, &hHash))
-	{
-		dwStatus = GetLastError();
-		//_stprintf(OutErrorMessage, TEXT("CryptAcquireContext failed: %d\n"), dwStatus);
-		CloseHandle(hFile);
-		CryptReleaseContext(hProv, 0);
-		return dwStatus;
-	}
-
-	while (bResult = ReadFile(hFile, rgbFile, BUFSIZE,
-		&cbRead, NULL))
-	{
-		if (0 == cbRead)
-		{
-			break;
-		}
-
-		if (!CryptHashData(hHash, rgbFile, cbRead, 0))
-		{
-			dwStatus = GetLastError();
-			//_stprintf(OutErrorMessage, TEXT("CryptHashData failed: %d\n"), dwStatus);
-			CryptReleaseContext(hProv, 0);
-			CryptDestroyHash(hHash);
-			CloseHandle(hFile);
-			return dwStatus;
-		}
-	}
-
-	if (!bResult)
-	{
-		dwStatus = GetLastError();
-		//_stprintf(OutErrorMessage, TEXT("ReadFile failed: %d\n"), dwStatus);
-		CryptReleaseContext(hProv, 0);
-		CryptDestroyHash(hHash);
-		CloseHandle(hFile);
-		return dwStatus;
-	}
-
-	cbHash = MD5LEN;
-	if (CryptGetHashParam(hHash, HP_HASHVAL, rgbHash, &cbHash, 0))
-	{
-		for (DWORD i = 0; i < cbHash; i++)
-		{
-			OutMD5Characters[2 * i + 0] = rgbDigits[rgbHash[i] >> 4];
-			OutMD5Characters[2 * i + 1] = rgbDigits[rgbHash[i] & 0xf];
-		}
-
-		OutMD5Characters[cbHash * 2] = 0;
-	}
-	else
-	{
-		dwStatus = GetLastError();
-		//_stprintf(OutErrorMessage, TEXT("CryptGetHashParam failed: %d\n"), dwStatus);
-	}
-
-	CryptDestroyHash(hHash);
-	CryptReleaseContext(hProv, 0);
-	CloseHandle(hFile);
-
-	return dwStatus;
-}
 
 void CDupFileFinderDlg::OnBnClickedSrcPathBrowserButton()
 {
@@ -321,101 +217,6 @@ void CDupFileFinderDlg::OnBnClickedDestPathBrowserButton()
 		{
 			imalloc->Free(pidl);
 			imalloc->Release();
-		}
-	}
-}
-
-// inFileName을 찾아서, 상대 경로를 포함해서, outFIles에 담음.
-void RecursiveFileFind(std::vector<CString>& outFiles, const CString& inPath, const CString& inRelPath, const CString& inFileName)
-{
-	CFileFind finder;
-
-	BOOL bWorking = (inRelPath != TEXT("")) ? finder.FindFile(inPath + TEXT("\\") + inRelPath + TEXT("\\") + inFileName) : finder.FindFile(inPath + TEXT("\\") + inFileName);
-
-	while (bWorking)
-	{
-		bWorking = finder.FindNextFile();
-		if (!finder.IsDirectory())
-		{
-			//파일의 이름
-			CString _fileName = finder.GetFileName();
-			if (inRelPath != TEXT(""))
-				outFiles.push_back(inRelPath + TEXT("\\") + _fileName);
-			else
-				outFiles.push_back(_fileName);
-		}
-		else
-		{
-			CString _fileName = finder.GetFileName();
-			if (_fileName != TEXT(".") && _fileName != TEXT(".."))
-				RecursiveFileFind(outFiles, inPath, inRelPath + TEXT("\\") + _fileName, inFileName);
-		}
-	}
-
-	bWorking = (inRelPath != TEXT("")) ? finder.FindFile(inPath + TEXT("\\") + inRelPath + TEXT("\\*")) : finder.FindFile(inPath + TEXT("\\*"));
-	while (bWorking)
-	{
-		bWorking = finder.FindNextFile();
-		if (finder.IsDirectory())
-		{
-			CString _fileName = finder.GetFileName();
-			if (_fileName != TEXT(".") && _fileName != TEXT(".."))
-				RecursiveFileFind(outFiles, inPath, inRelPath + TEXT("\\") + _fileName, inFileName);
-		}
-	}
-}
-
-// 비교 함수 정의 : 파일 이름만 비교
-struct comparePaths
-{
-	bool operator()(const CString& a, const CString& b) const
-	{
-		int FindPosa = a.ReverseFind(TEXT('\\'));
-		CString Suba = (FindPosa != -1) ? a.Mid(FindPosa + 1) : a;
-
-		int FindPosb = b.ReverseFind(TEXT('\\'));
-		CString Subb = (FindPosb != -1) ? b.Mid(FindPosb + 1) : b;
-
-		return Suba < Subb;
-	}
-};
-
-// inFileName을 찾아서, 상대 경로를 포함해서, outFIles에 담음.
-void RecursiveFileFind(std::set<CString, comparePaths>& outFiles, const CString& inPath, const CString& inRelPath, const CString& inFileName)
-{
-	CFileFind finder;
-
-	BOOL bWorking = (inRelPath != TEXT("")) ? finder.FindFile(inPath + TEXT("\\") + inRelPath + TEXT("\\") + inFileName) : finder.FindFile(inPath + TEXT("\\") + inFileName);
-
-	while (bWorking)
-	{
-		bWorking = finder.FindNextFile();
-		if (!finder.IsDirectory())
-		{
-			//파일의 이름
-			CString _fileName = finder.GetFileName();
-			if (inRelPath != TEXT(""))
-				outFiles.insert(inRelPath + TEXT("\\") + _fileName);
-			else
-				outFiles.insert(_fileName);
-		}
-		else
-		{
-			CString _fileName = finder.GetFileName();
-			if (_fileName != TEXT(".") && _fileName != TEXT(".."))
-				RecursiveFileFind(outFiles, inPath, inRelPath + TEXT("\\") + _fileName, inFileName);
-		}
-	}
-
-	bWorking = (inRelPath != TEXT("")) ? finder.FindFile(inPath + TEXT("\\") + inRelPath + TEXT("\\*")) : finder.FindFile(inPath + TEXT("\\*"));
-	while (bWorking)
-	{
-		bWorking = finder.FindNextFile();
-		if (finder.IsDirectory())
-		{
-			CString _fileName = finder.GetFileName();
-			if (_fileName != TEXT(".") && _fileName != TEXT(".."))
-				RecursiveFileFind(outFiles, inPath, inRelPath + TEXT("\\") + _fileName, inFileName);
 		}
 	}
 }
@@ -519,21 +320,33 @@ void CDupFileFinderDlg::OnBnClickedFindButton()
 	}
 }
 
-void CDupFileFinderDlg::OnBnClickedRemvoeButton()
+void CDupFileFinderDlg::OnBnClickedRemoveButton()
 {
 	CString DestFilePath;
 	DestPathEdit.GetWindowText(DestFilePath);
 
-	for (auto iter = DupFilesMap.begin(); iter != DupFilesMap.end(); ++iter)
+	std::vector<CString> DeleteFiles;
+
+	// List Ctrl에서 선택된 파일만 삭제한다.
+	int maxItemCount = ResultListCtrl.GetCount() + 1;
+	int* pSelectedItems = new int[maxItemCount];
+
+	int selectedCount = ResultListCtrl.GetSelItems(maxItemCount, pSelectedItems);
+	for (int i = 0; i < selectedCount; ++i)
 	{
-		const CString& RelDestFileName = iter->first;
+		CString RelDestFileName;
+		ResultListCtrl.GetText(pSelectedItems[i], RelDestFileName);
 
 		int FindPosDest = RelDestFileName.ReverseFind(TEXT('\\'));
 
 		CString DestFileFullPath = (FindPosDest != -1) ? DestFilePath + RelDestFileName : DestFilePath + TEXT("\\") + RelDestFileName;
 
-		DeleteFile(DestFileFullPath);
+		DeleteFiles.push_back(DestFileFullPath);
 	}
+
+	RecycleFilesOnWindows(DeleteFiles);
+
+	// TODO : 삭제한 파일을 List Ctrl에서 지운다.
 }
 
 bool CDupFileFinderDlg::GetExts(std::vector<CString>& OutExts)
