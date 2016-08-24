@@ -1,11 +1,13 @@
-
-// DupFileFinderDlg.cpp : ±¸Çö ÆÄÀÏ
+ï»¿
+// DupFileFinderDlg.cpp : êµ¬í˜„ íŒŒì¼
 //
 
 #include "stdafx.h"
 #include "DupFileFinder.h"
 #include "DupFileFinderDlg.h"
 #include "afxdialogex.h"
+
+#include <Wincrypt.h>
 
 #include <vector>
 #include <set>
@@ -15,22 +17,22 @@
 #endif
 
 
-// ÀÀ¿ë ÇÁ·Î±×·¥ Á¤º¸¿¡ »ç¿ëµÇ´Â CAboutDlg ´ëÈ­ »óÀÚÀÔ´Ï´Ù.
+// ì‘ìš© í”„ë¡œê·¸ë¨ ì •ë³´ì— ì‚¬ìš©ë˜ëŠ” CAboutDlg ëŒ€í™” ìƒìì…ë‹ˆë‹¤.
 
 class CAboutDlg : public CDialogEx
 {
 public:
 	CAboutDlg();
 
-// ´ëÈ­ »óÀÚ µ¥ÀÌÅÍÀÔ´Ï´Ù.
+// ëŒ€í™” ìƒì ë°ì´í„°ì…ë‹ˆë‹¤.
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_ABOUTBOX };
 #endif
 
 	protected:
-	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV Áö¿øÀÔ´Ï´Ù.
+	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV ì§€ì›ì…ë‹ˆë‹¤.
 
-// ±¸ÇöÀÔ´Ï´Ù.
+// êµ¬í˜„ì…ë‹ˆë‹¤.
 protected:
 	DECLARE_MESSAGE_MAP()
 };
@@ -48,7 +50,7 @@ BEGIN_MESSAGE_MAP(CAboutDlg, CDialogEx)
 END_MESSAGE_MAP()
 
 
-// CDupFileFinderDlg ´ëÈ­ »óÀÚ
+// CDupFileFinderDlg ëŒ€í™” ìƒì
 
 
 
@@ -65,6 +67,7 @@ void CDupFileFinderDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_DEST_PATH_EDIT, DestPathEdit);
 	DDX_Control(pDX, IDC_EXTS_EDIT, ExtsEdit);
 	DDX_Control(pDX, IDC_RESULT_LIST, ResultListCtrl);
+	DDX_Control(pDX, IDC_SRC_PATH_STATIC, InfoTextStatic);
 }
 
 BEGIN_MESSAGE_MAP(CDupFileFinderDlg, CDialogEx)
@@ -78,15 +81,15 @@ BEGIN_MESSAGE_MAP(CDupFileFinderDlg, CDialogEx)
 END_MESSAGE_MAP()
 
 
-// CDupFileFinderDlg ¸Ş½ÃÁö Ã³¸®±â
+// CDupFileFinderDlg ë©”ì‹œì§€ ì²˜ë¦¬ê¸°
 
 BOOL CDupFileFinderDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
 
-	// ½Ã½ºÅÛ ¸Ş´º¿¡ "Á¤º¸..." ¸Ş´º Ç×¸ñÀ» Ãß°¡ÇÕ´Ï´Ù.
+	// ì‹œìŠ¤í…œ ë©”ë‰´ì— "ì •ë³´..." ë©”ë‰´ í•­ëª©ì„ ì¶”ê°€í•©ë‹ˆë‹¤.
 
-	// IDM_ABOUTBOX´Â ½Ã½ºÅÛ ¸í·É ¹üÀ§¿¡ ÀÖ¾î¾ß ÇÕ´Ï´Ù.
+	// IDM_ABOUTBOXëŠ” ì‹œìŠ¤í…œ ëª…ë ¹ ë²”ìœ„ì— ìˆì–´ì•¼ í•©ë‹ˆë‹¤.
 	ASSERT((IDM_ABOUTBOX & 0xFFF0) == IDM_ABOUTBOX);
 	ASSERT(IDM_ABOUTBOX < 0xF000);
 
@@ -104,14 +107,14 @@ BOOL CDupFileFinderDlg::OnInitDialog()
 		}
 	}
 
-	// ÀÌ ´ëÈ­ »óÀÚÀÇ ¾ÆÀÌÄÜÀ» ¼³Á¤ÇÕ´Ï´Ù.  ÀÀ¿ë ÇÁ·Î±×·¥ÀÇ ÁÖ Ã¢ÀÌ ´ëÈ­ »óÀÚ°¡ ¾Æ´Ò °æ¿ì¿¡´Â
-	//  ÇÁ·¹ÀÓ¿öÅ©°¡ ÀÌ ÀÛ¾÷À» ÀÚµ¿À¸·Î ¼öÇàÇÕ´Ï´Ù.
-	SetIcon(m_hIcon, TRUE);			// Å« ¾ÆÀÌÄÜÀ» ¼³Á¤ÇÕ´Ï´Ù.
-	SetIcon(m_hIcon, FALSE);		// ÀÛÀº ¾ÆÀÌÄÜÀ» ¼³Á¤ÇÕ´Ï´Ù.
+	// ì´ ëŒ€í™” ìƒìì˜ ì•„ì´ì½˜ì„ ì„¤ì •í•©ë‹ˆë‹¤.  ì‘ìš© í”„ë¡œê·¸ë¨ì˜ ì£¼ ì°½ì´ ëŒ€í™” ìƒìê°€ ì•„ë‹ ê²½ìš°ì—ëŠ”
+	//  í”„ë ˆì„ì›Œí¬ê°€ ì´ ì‘ì—…ì„ ìë™ìœ¼ë¡œ ìˆ˜í–‰í•©ë‹ˆë‹¤.
+	SetIcon(m_hIcon, TRUE);			// í° ì•„ì´ì½˜ì„ ì„¤ì •í•©ë‹ˆë‹¤.
+	SetIcon(m_hIcon, FALSE);		// ì‘ì€ ì•„ì´ì½˜ì„ ì„¤ì •í•©ë‹ˆë‹¤.
 
-	// TODO: ¿©±â¿¡ Ãß°¡ ÃÊ±âÈ­ ÀÛ¾÷À» Ãß°¡ÇÕ´Ï´Ù.
+	// TODO: ì—¬ê¸°ì— ì¶”ê°€ ì´ˆê¸°í™” ì‘ì—…ì„ ì¶”ê°€í•©ë‹ˆë‹¤.
 
-	return TRUE;  // Æ÷Ä¿½º¸¦ ÄÁÆ®·Ñ¿¡ ¼³Á¤ÇÏÁö ¾ÊÀ¸¸é TRUE¸¦ ¹İÈ¯ÇÕ´Ï´Ù.
+	return TRUE;  // í¬ì»¤ìŠ¤ë¥¼ ì»¨íŠ¸ë¡¤ì— ì„¤ì •í•˜ì§€ ì•Šìœ¼ë©´ TRUEë¥¼ ë°˜í™˜í•©ë‹ˆë‹¤.
 }
 
 void CDupFileFinderDlg::OnSysCommand(UINT nID, LPARAM lParam)
@@ -127,19 +130,19 @@ void CDupFileFinderDlg::OnSysCommand(UINT nID, LPARAM lParam)
 	}
 }
 
-// ´ëÈ­ »óÀÚ¿¡ ÃÖ¼ÒÈ­ ´ÜÃß¸¦ Ãß°¡ÇÒ °æ¿ì ¾ÆÀÌÄÜÀ» ±×¸®·Á¸é
-//  ¾Æ·¡ ÄÚµå°¡ ÇÊ¿äÇÕ´Ï´Ù.  ¹®¼­/ºä ¸ğµ¨À» »ç¿ëÇÏ´Â MFC ÀÀ¿ë ÇÁ·Î±×·¥ÀÇ °æ¿ì¿¡´Â
-//  ÇÁ·¹ÀÓ¿öÅ©¿¡¼­ ÀÌ ÀÛ¾÷À» ÀÚµ¿À¸·Î ¼öÇàÇÕ´Ï´Ù.
+// ëŒ€í™” ìƒìì— ìµœì†Œí™” ë‹¨ì¶”ë¥¼ ì¶”ê°€í•  ê²½ìš° ì•„ì´ì½˜ì„ ê·¸ë¦¬ë ¤ë©´
+//  ì•„ë˜ ì½”ë“œê°€ í•„ìš”í•©ë‹ˆë‹¤.  ë¬¸ì„œ/ë·° ëª¨ë¸ì„ ì‚¬ìš©í•˜ëŠ” MFC ì‘ìš© í”„ë¡œê·¸ë¨ì˜ ê²½ìš°ì—ëŠ”
+//  í”„ë ˆì„ì›Œí¬ì—ì„œ ì´ ì‘ì—…ì„ ìë™ìœ¼ë¡œ ìˆ˜í–‰í•©ë‹ˆë‹¤.
 
 void CDupFileFinderDlg::OnPaint()
 {
 	if (IsIconic())
 	{
-		CPaintDC dc(this); // ±×¸®±â¸¦ À§ÇÑ µğ¹ÙÀÌ½º ÄÁÅØ½ºÆ®ÀÔ´Ï´Ù.
+		CPaintDC dc(this); // ê·¸ë¦¬ê¸°ë¥¼ ìœ„í•œ ë””ë°”ì´ìŠ¤ ì»¨í…ìŠ¤íŠ¸ì…ë‹ˆë‹¤.
 
 		SendMessage(WM_ICONERASEBKGND, reinterpret_cast<WPARAM>(dc.GetSafeHdc()), 0);
 
-		// Å¬¶óÀÌ¾ğÆ® »ç°¢Çü¿¡¼­ ¾ÆÀÌÄÜÀ» °¡¿îµ¥¿¡ ¸ÂÃä´Ï´Ù.
+		// í´ë¼ì´ì–¸íŠ¸ ì‚¬ê°í˜•ì—ì„œ ì•„ì´ì½˜ì„ ê°€ìš´ë°ì— ë§ì¶¥ë‹ˆë‹¤.
 		int cxIcon = GetSystemMetrics(SM_CXICON);
 		int cyIcon = GetSystemMetrics(SM_CYICON);
 		CRect rect;
@@ -147,7 +150,7 @@ void CDupFileFinderDlg::OnPaint()
 		int x = (rect.Width() - cxIcon + 1) / 2;
 		int y = (rect.Height() - cyIcon + 1) / 2;
 
-		// ¾ÆÀÌÄÜÀ» ±×¸³´Ï´Ù.
+		// ì•„ì´ì½˜ì„ ê·¸ë¦½ë‹ˆë‹¤.
 		dc.DrawIcon(x, y, m_hIcon);
 	}
 	else
@@ -156,14 +159,120 @@ void CDupFileFinderDlg::OnPaint()
 	}
 }
 
-// »ç¿ëÀÚ°¡ ÃÖ¼ÒÈ­µÈ Ã¢À» ²ô´Â µ¿¾È¿¡ Ä¿¼­°¡ Ç¥½ÃµÇµµ·Ï ½Ã½ºÅÛ¿¡¼­
-//  ÀÌ ÇÔ¼ö¸¦ È£ÃâÇÕ´Ï´Ù.
+// ì‚¬ìš©ìê°€ ìµœì†Œí™”ëœ ì°½ì„ ë„ëŠ” ë™ì•ˆì— ì»¤ì„œê°€ í‘œì‹œë˜ë„ë¡ ì‹œìŠ¤í…œì—ì„œ
+//  ì´ í•¨ìˆ˜ë¥¼ í˜¸ì¶œí•©ë‹ˆë‹¤.
 HCURSOR CDupFileFinderDlg::OnQueryDragIcon()
 {
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
+#define BUFSIZE 1024
+#define MD5LEN  16
 
+DWORD GetMD5(const TCHAR* InFileName, TCHAR* OutMD5Characters, TCHAR* OutErrorMessage)
+{
+	const TCHAR rgbDigits[] = TEXT("0123456789abcdef");
+
+	DWORD dwStatus = 0;
+	BOOL bResult = FALSE;
+	HCRYPTPROV hProv = 0;
+	HCRYPTHASH hHash = 0;
+	HANDLE hFile = NULL;
+	BYTE rgbFile[BUFSIZE];
+	DWORD cbRead = 0;
+	BYTE rgbHash[MD5LEN];
+	DWORD cbHash = 0;
+	// Logic to check usage goes here.
+
+	hFile = CreateFile(InFileName,
+		GENERIC_READ,
+		FILE_SHARE_READ,
+		NULL,
+		OPEN_EXISTING,
+		FILE_FLAG_SEQUENTIAL_SCAN,
+		NULL);
+
+	if (INVALID_HANDLE_VALUE == hFile)
+	{
+		dwStatus = GetLastError();
+		//_stprintf(OutErrorMessage, TEXT("Error opening file %s\nError: %d\n"), InFileName, dwStatus);
+		return dwStatus;
+	}
+
+	// Get handle to the crypto provider
+	if (!CryptAcquireContext(&hProv,
+		NULL,
+		NULL,
+		PROV_RSA_FULL,
+		CRYPT_VERIFYCONTEXT))
+	{
+		dwStatus = GetLastError();
+		//_stprintf(OutErrorMessage, TEXT("CryptAcquireContext failed: %d\n"), dwStatus);
+		CloseHandle(hFile);
+		return dwStatus;
+	}
+
+	if (!CryptCreateHash(hProv, CALG_MD5, 0, 0, &hHash))
+	{
+		dwStatus = GetLastError();
+		//_stprintf(OutErrorMessage, TEXT("CryptAcquireContext failed: %d\n"), dwStatus);
+		CloseHandle(hFile);
+		CryptReleaseContext(hProv, 0);
+		return dwStatus;
+	}
+
+	while (bResult = ReadFile(hFile, rgbFile, BUFSIZE,
+		&cbRead, NULL))
+	{
+		if (0 == cbRead)
+		{
+			break;
+		}
+
+		if (!CryptHashData(hHash, rgbFile, cbRead, 0))
+		{
+			dwStatus = GetLastError();
+			//_stprintf(OutErrorMessage, TEXT("CryptHashData failed: %d\n"), dwStatus);
+			CryptReleaseContext(hProv, 0);
+			CryptDestroyHash(hHash);
+			CloseHandle(hFile);
+			return dwStatus;
+		}
+	}
+
+	if (!bResult)
+	{
+		dwStatus = GetLastError();
+		//_stprintf(OutErrorMessage, TEXT("ReadFile failed: %d\n"), dwStatus);
+		CryptReleaseContext(hProv, 0);
+		CryptDestroyHash(hHash);
+		CloseHandle(hFile);
+		return dwStatus;
+	}
+
+	cbHash = MD5LEN;
+	if (CryptGetHashParam(hHash, HP_HASHVAL, rgbHash, &cbHash, 0))
+	{
+		for (DWORD i = 0; i < cbHash; i++)
+		{
+			OutMD5Characters[2 * i + 0] = rgbDigits[rgbHash[i] >> 4];
+			OutMD5Characters[2 * i + 1] = rgbDigits[rgbHash[i] & 0xf];
+		}
+
+		OutMD5Characters[cbHash * 2] = 0;
+	}
+	else
+	{
+		dwStatus = GetLastError();
+		//_stprintf(OutErrorMessage, TEXT("CryptGetHashParam failed: %d\n"), dwStatus);
+	}
+
+	CryptDestroyHash(hHash);
+	CryptReleaseContext(hProv, 0);
+	CloseHandle(hFile);
+
+	return dwStatus;
+}
 
 void CDupFileFinderDlg::OnBnClickedSrcPathBrowserButton()
 {
@@ -216,7 +325,7 @@ void CDupFileFinderDlg::OnBnClickedDestPathBrowserButton()
 	}
 }
 
-
+// inFileNameì„ ì°¾ì•„ì„œ, ìƒëŒ€ ê²½ë¡œë¥¼ í¬í•¨í•´ì„œ, outFIlesì— ë‹´ìŒ.
 void RecursiveFileFind(std::vector<CString>& outFiles, const CString& inPath, const CString& inRelPath, const CString& inFileName)
 {
 	CFileFind finder;
@@ -228,7 +337,7 @@ void RecursiveFileFind(std::vector<CString>& outFiles, const CString& inPath, co
 		bWorking = finder.FindNextFile();
 		if (!finder.IsDirectory())
 		{
-			//ÆÄÀÏÀÇ ÀÌ¸§
+			//íŒŒì¼ì˜ ì´ë¦„
 			CString _fileName = finder.GetFileName();
 			if (inRelPath != TEXT(""))
 				outFiles.push_back(inRelPath + TEXT("\\") + _fileName);
@@ -256,8 +365,23 @@ void RecursiveFileFind(std::vector<CString>& outFiles, const CString& inPath, co
 	}
 }
 
-// ÆÄÀÏ¸í¸¸, outFIles¿¡ ´ãÀ½.
-void RecursiveFileFind(std::set<CString>& outFiles, const CString& inPath, const CString& inRelPath, const CString& inFileName)
+// ë¹„êµ í•¨ìˆ˜ ì •ì˜ : íŒŒì¼ ì´ë¦„ë§Œ ë¹„êµ
+struct comparePaths
+{
+	bool operator()(const CString& a, const CString& b) const
+	{
+		int FindPosa = a.ReverseFind(TEXT('\\'));
+		CString Suba = (FindPosa != -1) ? a.Mid(FindPosa + 1) : a;
+
+		int FindPosb = b.ReverseFind(TEXT('\\'));
+		CString Subb = (FindPosb != -1) ? b.Mid(FindPosb + 1) : b;
+
+		return Suba < Subb;
+	}
+};
+
+// inFileNameì„ ì°¾ì•„ì„œ, ìƒëŒ€ ê²½ë¡œë¥¼ í¬í•¨í•´ì„œ, outFIlesì— ë‹´ìŒ.
+void RecursiveFileFind(std::set<CString, comparePaths>& outFiles, const CString& inPath, const CString& inRelPath, const CString& inFileName)
 {
 	CFileFind finder;
 
@@ -268,9 +392,12 @@ void RecursiveFileFind(std::set<CString>& outFiles, const CString& inPath, const
 		bWorking = finder.FindNextFile();
 		if (!finder.IsDirectory())
 		{
-			//ÆÄÀÏÀÇ ÀÌ¸§
+			//íŒŒì¼ì˜ ì´ë¦„
 			CString _fileName = finder.GetFileName();
-			outFiles.insert(_fileName);
+			if (inRelPath != TEXT(""))
+				outFiles.insert(inRelPath + TEXT("\\") + _fileName);
+			else
+				outFiles.insert(_fileName);
 		}
 		else
 		{
@@ -318,7 +445,8 @@ void CDupFileFinderDlg::OnBnClickedFindButton()
 		RecursiveFileFind(DestFiles, DestFilePath, TEXT(""), TEXT("*.") + Ext);
 	}
 
-	std::set<CString> SrcFiles;
+	std::set<CString, comparePaths> SrcFiles;
+
 	for (int i = 0; i < Exts.size(); ++i)
 	{
 		const CString& Ext = Exts[i];
@@ -333,39 +461,100 @@ void CDupFileFinderDlg::OnBnClickedFindButton()
 
 		CString DestFileName = (FindPos == -1) ? RelDestFileName : RelDestFileName.Mid(FindPos + 1);
 
-		// setÀ¸·Î °¡Á®¿Ã ¶§µµ, »ç½ÇÀº »ó´ë path·Î °¡Á®¿Í¼­,
-		// find ÇÒ ¶§, ºñ±³ÇÔ¼ö¸¦ Á¤ÀÇÇØ¼­, ÇÑ´Ù.
+		// setìœ¼ë¡œ ê°€ì ¸ì˜¬ ë•Œë„, ì‚¬ì‹¤ì€ ìƒëŒ€ pathë¡œ ê°€ì ¸ì™€ì„œ,
+		// find í•  ë•Œ, ë¹„êµí•¨ìˆ˜ë¥¼ ì •ì˜í•´ì„œ, í•œë‹¤.
 		auto finditer = SrcFiles.find(DestFileName);
 		if (finditer != SrcFiles.end())
 		{
-			ResultListCtrl.AddString(RelDestFileName);
+			// íŒŒì¼ ë¹„êµ
+			TCHAR SrcMD5[2*MD5LEN + 1] = { 0, };
+			TCHAR DestMD5[2*MD5LEN + 1] = { 0, };
 
-			DupFilesMap.insert(std::pair<CString, CString>(
-				));
+			const CString& RelSrcFileName = *finditer;
+
+			int FindPosSrc = RelSrcFileName.ReverseFind(TEXT('\\'));
+			int FindPosDest = RelDestFileName.ReverseFind(TEXT('\\'));
+
+			CString SrcFileFullPath = (FindPosSrc != -1) ? SrcFilePath + RelSrcFileName : SrcFilePath + TEXT("\\") + RelSrcFileName;
+			CString DestFileFullPath = (FindPosDest != -1) ? DestFilePath + RelDestFileName : DestFilePath + TEXT("\\") + RelDestFileName;
+
+			const TCHAR* _SrcFileFullPath = SrcFileFullPath.GetBuffer();
+			const TCHAR* _DestFileFullPath = DestFileFullPath.GetBuffer();
+
+			if (GetMD5(_SrcFileFullPath, SrcMD5, NULL) != 0)
+			{
+				int a = 0;
+			}
+
+			if (GetMD5(_DestFileFullPath, DestMD5, NULL) != 0)
+			{
+				int a = 0;
+			}
+
+			bool SameMD5 = true;
+			for (int j = 0; j < MD5LEN; ++j)
+			{
+				if (SrcMD5[j] != DestMD5[j])
+				{
+					SameMD5 = false;
+					break;
+				}
+			}
+
+			if (SameMD5)
+			{
+				ResultListCtrl.AddString(RelDestFileName);
+				DupFilesMap.insert(std::pair<CString, CString>(RelDestFileName, *finditer));
+			}
 		}
+	}
+
+	CString InfoTextMessage;
+	InfoTextMessage.Format(TEXT("%d Files Found"), DupFilesMap.size());
+	SetInfoText(InfoTextMessage);
+
+	for (int i = 0; i < ResultListCtrl.GetCount(); i++)
+	{
+		ResultListCtrl.SetSel(i, true);
 	}
 }
 
-
 void CDupFileFinderDlg::OnBnClickedRemvoeButton()
 {
-	// ÆÄÀÏÀ» ºñ±³ÇØ¼­, »èÁ¦ÇÑ´Ù.
+	CString DestFilePath;
+	DestPathEdit.GetWindowText(DestFilePath);
 
+	for (auto iter = DupFilesMap.begin(); iter != DupFilesMap.end(); ++iter)
+	{
+		const CString& RelDestFileName = iter->first;
+
+		int FindPosDest = RelDestFileName.ReverseFind(TEXT('\\'));
+
+		CString DestFileFullPath = (FindPosDest != -1) ? DestFilePath + RelDestFileName : DestFilePath + TEXT("\\") + RelDestFileName;
+
+		DeleteFile(DestFileFullPath);
+	}
 }
 
 bool CDupFileFinderDlg::GetExts(std::vector<CString>& OutExts)
 {
+	// í™•ì¥ìë¥¼ ê°€ì ¸ì˜¨ë‹¤.
 	CString ExtsLine;
 	ExtsEdit.GetWindowText(ExtsLine);
 
 	int curPos = 0;
 
-	CString Ext = ExtsLine.Tokenize(_T(" "), curPos);
+	CString Ext = ExtsLine.Tokenize(_T(" ;"), curPos);
 	while (Ext != _T(""))
 	{
 		OutExts.push_back(Ext);
-		Ext = ExtsLine.Tokenize(_T(" "), curPos);
+		Ext = ExtsLine.Tokenize(_T(" ;"), curPos);
 	};
 
 	return OutExts.size() != 0;
+}
+
+void CDupFileFinderDlg::SetInfoText(const CString& InText)
+{
+	InfoTextStatic.SetWindowText(InText);
 }

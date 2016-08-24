@@ -1,5 +1,5 @@
-
-// DupFileFinderDlg.h : Çì´õ ÆÄÀÏ
+ï»¿
+// DupFileFinderDlg.h : í—¤ë” íŒŒì¼
 //
 
 #pragma once
@@ -9,31 +9,32 @@
 #include <vector>
 
 
-// CDupFileFinderDlg ´ëÈ­ »óÀÚ
+// CDupFileFinderDlg ëŒ€í™” ìƒì
 class CDupFileFinderDlg : public CDialogEx
 {
-// »ı¼ºÀÔ´Ï´Ù.
+// ìƒì„±ì…ë‹ˆë‹¤.
 public:
-	CDupFileFinderDlg(CWnd* pParent = NULL);	// Ç¥ÁØ »ı¼ºÀÚÀÔ´Ï´Ù.
+	CDupFileFinderDlg(CWnd* pParent = NULL);	// í‘œì¤€ ìƒì„±ìì…ë‹ˆë‹¤.
 
-// ´ëÈ­ »óÀÚ µ¥ÀÌÅÍÀÔ´Ï´Ù.
+// ëŒ€í™” ìƒì ë°ì´í„°ì…ë‹ˆë‹¤.
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_DUPFILEFINDER_DIALOG };
 #endif
 
 	protected:
-	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV Áö¿øÀÔ´Ï´Ù.
+	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV ì§€ì›ì…ë‹ˆë‹¤.
 
 
-// ±¸ÇöÀÔ´Ï´Ù.
+// êµ¬í˜„ì…ë‹ˆë‹¤.
 protected:
 	HICON m_hIcon;
 
 	std::map<CString, CString> DupFilesMap;
 
 	bool GetExts(std::vector<CString>& OutExts);
+	void SetInfoText(const CString& InText);
 
-	// »ı¼ºµÈ ¸Ş½ÃÁö ¸Ê ÇÔ¼ö
+	// ìƒì„±ëœ ë©”ì‹œì§€ ë§µ í•¨ìˆ˜
 	virtual BOOL OnInitDialog();
 	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
 	afx_msg void OnPaint();
@@ -48,4 +49,5 @@ public:
 	CListBox ResultListCtrl;
 	afx_msg void OnBnClickedFindButton();
 	afx_msg void OnBnClickedRemvoeButton();
+	CStatic InfoTextStatic;
 };
