@@ -10,6 +10,7 @@
 #include <vector>
 #include <set>
 #include <algorithm>
+#include <memory>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -70,6 +71,8 @@ void CDupFileFinderDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_FIND_PROGRESS, FindProgressBar);
 	DDX_Control(pDX, IDC_FIND_BUTTON, FindButton);
 	DDX_Control(pDX, IDC_REMVOE_BUTTON, RemoveButton);
+	DDX_Control(pDX, IDC_DEST_PATH_BROWSER_BUTTON, DestPathBrowserButton);
+	DDX_Control(pDX, IDC_SRC_PATH_BROWSER_BUTTON, SrcPathBrowserButton);
 }
 
 BEGIN_MESSAGE_MAP(CDupFileFinderDlg, CDialogEx)
@@ -173,14 +176,53 @@ HCURSOR CDupFileFinderDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
+struct BFFParam
+{
+	const void* pData;
+	bool isString;
+};
 
+// 콜백
+int CALLBACK _BFFProc(HWND hwnd, UINT msg, LPARAM lparam, LPARAM data)
+{
+	lparam; // 경고 회피용
+
+			// 이 메시지가 오면
+	if (msg == BFFM_INITIALIZED)
+	{
+		// 이렇게 해서 원하는 것을 선택하도록 하면 된다.
+		auto pData = (BFFParam*)data;
+		if (pData != nullptr)
+			SendMessage(hwnd, BFFM_SETSELECTION, (pData->isString) ? TRUE : FALSE, (LPARAM)(pData->pData));
+	}
+
+	// 별다른 일이 없으면 0을 반환해야 한다
+	return 0;
+}
 
 
 
 void CDupFileFinderDlg::OnBnClickedSrcPathBrowserButton()
 {
 	BROWSEINFO bi = { 0 };
+	bi.hwndOwner = GetSafeHwnd();
 	bi.lpszTitle = TEXT("Find Folder");
+
+	BFFParam param;
+
+	CString PrevSrcPath;
+	SrcPathEdit.GetWindowText(PrevSrcPath);
+	if (PrevSrcPath != TEXT(""))
+	{
+		if (PathFileExists(PrevSrcPath))
+		{
+			param.pData = PrevSrcPath.GetBuffer();
+			param.isString = TRUE;
+
+			bi.lpfn = _BFFProc;
+			bi.lParam = (LPARAM)&param;
+		}
+	}
 
 	LPITEMIDLIST pidl = SHBrowseForFolder(&bi);
 	if (pidl != 0)
@@ -206,7 +248,24 @@ void CDupFileFinderDlg::OnBnClickedSrcPathBrowserButton()
 void CDupFileFinderDlg::OnBnClickedDestPathBrowserButton()
 {
 	BROWSEINFO bi = { 0 };
+	bi.hwndOwner = GetSafeHwnd();
 	bi.lpszTitle = TEXT("Find Folder");
+
+	BFFParam param;
+
+	CString PrevDestPath;
+	DestPathEdit.GetWindowText(PrevDestPath);
+	if (PrevDestPath != TEXT(""))
+	{
+		if (PathFileExists(PrevDestPath))
+		{
+			param.pData = PrevDestPath.GetBuffer();
+			param.isString = TRUE;
+
+			bi.lpfn = _BFFProc;
+			bi.lParam = (LPARAM)&param;
+		}
+	}
 
 	LPITEMIDLIST pidl = SHBrowseForFolder(&bi);
 	if (pidl != 0)
@@ -256,6 +315,8 @@ void CDupFileFinderDlg::OnBnClickedFindButton()
 
 	FindButton.EnableWindow(FALSE);
 	RemoveButton.EnableWindow(FALSE);
+	SrcPathBrowserButton.EnableWindow(FALSE);
+	DestPathBrowserButton.EnableWindow(FALSE);
 }
 
 void CDupFileFinderDlg::OnBnClickedRemoveButton()
@@ -273,15 +334,15 @@ void CDupFileFinderDlg::OnBnClickedRemoveButton()
 
 	// List Ctrl에서 선택된 파일만 삭제한다.
 	int maxItemCount = ResultListCtrl.GetCount() + 1;
-	int* pSelectedItems = new int[maxItemCount];
+	std::unique_ptr<int> pSelectedItems(new int[maxItemCount]);
 
-	int selectedCount = ResultListCtrl.GetSelItems(maxItemCount, pSelectedItems);
-	std::sort(pSelectedItems, pSelectedItems + selectedCount, std::less<int>());
+	int selectedCount = ResultListCtrl.GetSelItems(maxItemCount, pSelectedItems.get());
+	std::sort(pSelectedItems.get(), pSelectedItems.get() + selectedCount, std::less<int>());
 	
 	for (int i = 0; i < selectedCount; ++i)
 	{
 		CString RelDestFileName;
-		ResultListCtrl.GetText(pSelectedItems[i], RelDestFileName);
+		ResultListCtrl.GetText(pSelectedItems.get()[i], RelDestFileName);
 
 		int FindPosDest = RelDestFileName.ReverseFind(TEXT('\\'));
 
@@ -296,9 +357,13 @@ void CDupFileFinderDlg::OnBnClickedRemoveButton()
 	// 삭제한 파일을 List Ctrl에서 지운다.
 	for (int i = selectedCount - 1; i >= 0; --i)
 	{
-		if (pSelectedItems[i] < ResultListCtrl.GetCount())
-			ResultListCtrl.DeleteString(pSelectedItems[i]);
+		if (pSelectedItems.get()[i] < ResultListCtrl.GetCount())
+			ResultListCtrl.DeleteString(pSelectedItems.get()[i]);
 	}
+
+	CString InfoTextMessage;
+	InfoTextMessage.Format(TEXT("%d Files are moved to recycled Bin"), DeleteFiles.size());
+	SetInfoText(InfoTextMessage);
 }
 
 bool CDupFileFinderDlg::GetExts(std::vector<CString>& OutExts)
@@ -339,6 +404,8 @@ LRESULT CDupFileFinderDlg::OnUserEventFindCompleted(WPARAM wParam, LPARAM lParam
 {
 	FindButton.EnableWindow(TRUE);
 	RemoveButton.EnableWindow(TRUE);
+	SrcPathBrowserButton.EnableWindow(TRUE);
+	DestPathBrowserButton.EnableWindow(TRUE);
 
 	CString InfoTextMessage;
 	InfoTextMessage.Format(TEXT("%d Files Found"), ResultListCtrl.GetCount());

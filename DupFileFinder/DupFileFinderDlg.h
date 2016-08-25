@@ -63,4 +63,6 @@ public:
 	CButton FindButton;
 	CButton RemoveButton;
 	afx_msg void OnLbnSelchangeResultList();
+	CButton DestPathBrowserButton;
+	CButton SrcPathBrowserButton;
 };
