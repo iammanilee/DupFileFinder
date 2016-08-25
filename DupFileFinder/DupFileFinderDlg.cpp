@@ -9,6 +9,7 @@
 
 #include <vector>
 #include <set>
+#include <algorithm>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -68,6 +69,7 @@ void CDupFileFinderDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_SRC_PATH_STATIC, InfoTextStatic);
 	DDX_Control(pDX, IDC_FIND_PROGRESS, FindProgressBar);
 	DDX_Control(pDX, IDC_FIND_BUTTON, FindButton);
+	DDX_Control(pDX, IDC_REMVOE_BUTTON, RemoveButton);
 }
 
 BEGIN_MESSAGE_MAP(CDupFileFinderDlg, CDialogEx)
@@ -82,6 +84,7 @@ BEGIN_MESSAGE_MAP(CDupFileFinderDlg, CDialogEx)
 	ON_MESSAGE(WM_USER_FIND_COMPLETE, &CDupFileFinderDlg::OnUserEventFindCompleted)
 	ON_MESSAGE(WM_USER_FIND_DEST_COMPLETED, &CDupFileFinderDlg::OnUserEventFindDestCompleted)
 	ON_MESSAGE(WM_USER_FIND_SRC_FILE, &CDupFileFinderDlg::OnUserEventFindSrcFile)
+	ON_LBN_SELCHANGE(IDC_RESULT_LIST, &CDupFileFinderDlg::OnLbnSelchangeResultList)
 END_MESSAGE_MAP()
 
 
@@ -231,7 +234,6 @@ void CDupFileFinderDlg::OnBnClickedFindButton()
 	FindFilesParam.DestFileList.clear();
 	FindFilesParam.DupFilesMap.clear();
 
-	DupFilesMap.clear();
 	ResultListCtrl.ResetContent();
 
 	CString SrcFilePath;
@@ -253,11 +255,17 @@ void CDupFileFinderDlg::OnBnClickedFindButton()
 	hFindThread = CreateThread(NULL, 0, FindDuplicatedFunc, &FindFilesParam, 0, &FindThreadID);
 
 	FindButton.EnableWindow(FALSE);
-
+	RemoveButton.EnableWindow(FALSE);
 }
 
 void CDupFileFinderDlg::OnBnClickedRemoveButton()
 {
+	// 메세지로 확인
+	if (MessageBox(TEXT("Caution!. All selected files will be deleted!!!"), TEXT("Confirm"), MB_YESNO) != IDYES)
+	{
+		return;
+	}
+
 	CString DestFilePath;
 	DestPathEdit.GetWindowText(DestFilePath);
 
@@ -268,6 +276,8 @@ void CDupFileFinderDlg::OnBnClickedRemoveButton()
 	int* pSelectedItems = new int[maxItemCount];
 
 	int selectedCount = ResultListCtrl.GetSelItems(maxItemCount, pSelectedItems);
+	std::sort(pSelectedItems, pSelectedItems + selectedCount, std::less<int>());
+	
 	for (int i = 0; i < selectedCount; ++i)
 	{
 		CString RelDestFileName;
@@ -280,9 +290,15 @@ void CDupFileFinderDlg::OnBnClickedRemoveButton()
 		DeleteFiles.push_back(DestFileFullPath);
 	}
 
+	// 휴지통으로 이동한다.
 	RecycleFilesOnWindows(DeleteFiles);
 
-	// TODO : 삭제한 파일을 List Ctrl에서 지운다.
+	// 삭제한 파일을 List Ctrl에서 지운다.
+	for (int i = selectedCount - 1; i >= 0; --i)
+	{
+		if (pSelectedItems[i] < ResultListCtrl.GetCount())
+			ResultListCtrl.DeleteString(pSelectedItems[i]);
+	}
 }
 
 bool CDupFileFinderDlg::GetExts(std::vector<CString>& OutExts)
@@ -322,6 +338,7 @@ LRESULT CDupFileFinderDlg::OnUserEventUpdateProgressBar(WPARAM wParam, LPARAM lP
 LRESULT CDupFileFinderDlg::OnUserEventFindCompleted(WPARAM wParam, LPARAM lParam)
 {
 	FindButton.EnableWindow(TRUE);
+	RemoveButton.EnableWindow(TRUE);
 
 	CString InfoTextMessage;
 	InfoTextMessage.Format(TEXT("%d Files Found"), ResultListCtrl.GetCount());
@@ -351,4 +368,12 @@ LRESULT CDupFileFinderDlg::OnUserEventFindSrcFile(WPARAM wParam, LPARAM lParam)
 	}
 	
 	return TRUE;
+}
+
+
+void CDupFileFinderDlg::OnLbnSelchangeResultList()
+{
+	CString InfoTextMessage;
+	InfoTextMessage.Format(TEXT("%d Files are selected"), ResultListCtrl.GetSelCount());
+	SetInfoText(InfoTextMessage);
 }

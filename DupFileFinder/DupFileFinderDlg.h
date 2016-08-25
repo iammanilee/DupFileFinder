@@ -32,8 +32,6 @@ public:
 protected:
 	HICON m_hIcon;
 
-	std::map<CString, CString> DupFilesMap;
-
 	sFindFilesParam FindFilesParam;
 	DWORD FindThreadID;
 	HANDLE hFindThread;
@@ -63,4 +61,6 @@ public:
 	CStatic InfoTextStatic;
 	CProgressCtrl FindProgressBar;
 	CButton FindButton;
+	CButton RemoveButton;
+	afx_msg void OnLbnSelchangeResultList();
 };
