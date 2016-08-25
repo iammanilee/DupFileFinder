@@ -9,8 +9,8 @@
 
 #include <vector>
 #include <set>
-
-#include "utils.h"
+#include <algorithm>
+#include <memory>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -68,6 +68,11 @@ void CDupFileFinderDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_EXTS_EDIT, ExtsEdit);
 	DDX_Control(pDX, IDC_RESULT_LIST, ResultListCtrl);
 	DDX_Control(pDX, IDC_SRC_PATH_STATIC, InfoTextStatic);
+	DDX_Control(pDX, IDC_FIND_PROGRESS, FindProgressBar);
+	DDX_Control(pDX, IDC_FIND_BUTTON, FindButton);
+	DDX_Control(pDX, IDC_REMVOE_BUTTON, RemoveButton);
+	DDX_Control(pDX, IDC_DEST_PATH_BROWSER_BUTTON, DestPathBrowserButton);
+	DDX_Control(pDX, IDC_SRC_PATH_BROWSER_BUTTON, SrcPathBrowserButton);
 }
 
 BEGIN_MESSAGE_MAP(CDupFileFinderDlg, CDialogEx)
@@ -78,6 +83,11 @@ BEGIN_MESSAGE_MAP(CDupFileFinderDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_DEST_PATH_BROWSER_BUTTON, &CDupFileFinderDlg::OnBnClickedDestPathBrowserButton)
 	ON_BN_CLICKED(IDC_FIND_BUTTON, &CDupFileFinderDlg::OnBnClickedFindButton)
 	ON_BN_CLICKED(IDC_REMVOE_BUTTON, &CDupFileFinderDlg::OnBnClickedRemoveButton)
+	ON_MESSAGE(WM_USER_UPDATE_PROGRESS, &CDupFileFinderDlg::OnUserEventUpdateProgressBar)
+	ON_MESSAGE(WM_USER_FIND_COMPLETE, &CDupFileFinderDlg::OnUserEventFindCompleted)
+	ON_MESSAGE(WM_USER_FIND_DEST_COMPLETED, &CDupFileFinderDlg::OnUserEventFindDestCompleted)
+	ON_MESSAGE(WM_USER_FIND_SRC_FILE, &CDupFileFinderDlg::OnUserEventFindSrcFile)
+	ON_LBN_SELCHANGE(IDC_RESULT_LIST, &CDupFileFinderDlg::OnLbnSelchangeResultList)
 END_MESSAGE_MAP()
 
 
@@ -166,14 +176,53 @@ HCURSOR CDupFileFinderDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
+struct BFFParam
+{
+	const void* pData;
+	bool isString;
+};
 
+// 콜백
+int CALLBACK _BFFProc(HWND hwnd, UINT msg, LPARAM lparam, LPARAM data)
+{
+	lparam; // 경고 회피용
+
+			// 이 메시지가 오면
+	if (msg == BFFM_INITIALIZED)
+	{
+		// 이렇게 해서 원하는 것을 선택하도록 하면 된다.
+		auto pData = (BFFParam*)data;
+		if (pData != nullptr)
+			SendMessage(hwnd, BFFM_SETSELECTION, (pData->isString) ? TRUE : FALSE, (LPARAM)(pData->pData));
+	}
+
+	// 별다른 일이 없으면 0을 반환해야 한다
+	return 0;
+}
 
 
 
 void CDupFileFinderDlg::OnBnClickedSrcPathBrowserButton()
 {
 	BROWSEINFO bi = { 0 };
+	bi.hwndOwner = GetSafeHwnd();
 	bi.lpszTitle = TEXT("Find Folder");
+
+	BFFParam param;
+
+	CString PrevSrcPath;
+	SrcPathEdit.GetWindowText(PrevSrcPath);
+	if (PrevSrcPath != TEXT(""))
+	{
+		if (PathFileExists(PrevSrcPath))
+		{
+			param.pData = PrevSrcPath.GetBuffer();
+			param.isString = TRUE;
+
+			bi.lpfn = _BFFProc;
+			bi.lParam = (LPARAM)&param;
+		}
+	}
 
 	LPITEMIDLIST pidl = SHBrowseForFolder(&bi);
 	if (pidl != 0)
@@ -199,7 +248,24 @@ void CDupFileFinderDlg::OnBnClickedSrcPathBrowserButton()
 void CDupFileFinderDlg::OnBnClickedDestPathBrowserButton()
 {
 	BROWSEINFO bi = { 0 };
+	bi.hwndOwner = GetSafeHwnd();
 	bi.lpszTitle = TEXT("Find Folder");
+
+	BFFParam param;
+
+	CString PrevDestPath;
+	DestPathEdit.GetWindowText(PrevDestPath);
+	if (PrevDestPath != TEXT(""))
+	{
+		if (PathFileExists(PrevDestPath))
+		{
+			param.pData = PrevDestPath.GetBuffer();
+			param.isString = TRUE;
+
+			bi.lpfn = _BFFProc;
+			bi.lParam = (LPARAM)&param;
+		}
+	}
 
 	LPITEMIDLIST pidl = SHBrowseForFolder(&bi);
 	if (pidl != 0)
@@ -223,7 +289,9 @@ void CDupFileFinderDlg::OnBnClickedDestPathBrowserButton()
 
 void CDupFileFinderDlg::OnBnClickedFindButton()
 {
-	DupFilesMap.clear();
+	FindFilesParam.Exts.clear();
+	FindFilesParam.DestFileList.clear();
+	FindFilesParam.DupFilesMap.clear();
 
 	ResultListCtrl.ResetContent();
 
@@ -233,95 +301,32 @@ void CDupFileFinderDlg::OnBnClickedFindButton()
 	CString DestFilePath;
 	DestPathEdit.GetWindowText(DestFilePath);
 
-	std::vector<CString> DestFiles;
-	std::vector<CString> Exts;
-	if (!GetExts(Exts))
+	FindFilesParam.SrcFilePath = SrcFilePath;
+	FindFilesParam.DestFilePath = DestFilePath;
+
+	FindFilesParam.hwnd = GetSafeHwnd();
+
+	if (!GetExts(FindFilesParam.Exts))
 	{
 		return;
 	}
 
-	for (int i = 0; i < Exts.size(); ++i)
-	{
-		const CString& Ext = Exts[i];
-		RecursiveFileFind(DestFiles, DestFilePath, TEXT(""), TEXT("*.") + Ext);
-	}
+	hFindThread = CreateThread(NULL, 0, FindDuplicatedFunc, &FindFilesParam, 0, &FindThreadID);
 
-	std::set<CString, comparePaths> SrcFiles;
-
-	for (int i = 0; i < Exts.size(); ++i)
-	{
-		const CString& Ext = Exts[i];
-		RecursiveFileFind(SrcFiles, SrcFilePath, TEXT(""), TEXT("*.") + Ext);
-	}
-
-	for (int i = 0; i < DestFiles.size(); ++i)
-	{
-		CString& RelDestFileName = DestFiles[i];
-
-		int FindPos = RelDestFileName.ReverseFind(TEXT('\\'));
-
-		CString DestFileName = (FindPos == -1) ? RelDestFileName : RelDestFileName.Mid(FindPos + 1);
-
-		// set으로 가져올 때도, 사실은 상대 path로 가져와서,
-		// find 할 때, 비교함수를 정의해서, 한다.
-		auto finditer = SrcFiles.find(DestFileName);
-		if (finditer != SrcFiles.end())
-		{
-			// 파일 비교
-			TCHAR SrcMD5[2*MD5LEN + 1] = { 0, };
-			TCHAR DestMD5[2*MD5LEN + 1] = { 0, };
-
-			const CString& RelSrcFileName = *finditer;
-
-			int FindPosSrc = RelSrcFileName.ReverseFind(TEXT('\\'));
-			int FindPosDest = RelDestFileName.ReverseFind(TEXT('\\'));
-
-			CString SrcFileFullPath = (FindPosSrc != -1) ? SrcFilePath + RelSrcFileName : SrcFilePath + TEXT("\\") + RelSrcFileName;
-			CString DestFileFullPath = (FindPosDest != -1) ? DestFilePath + RelDestFileName : DestFilePath + TEXT("\\") + RelDestFileName;
-
-			const TCHAR* _SrcFileFullPath = SrcFileFullPath.GetBuffer();
-			const TCHAR* _DestFileFullPath = DestFileFullPath.GetBuffer();
-
-			if (GetMD5(_SrcFileFullPath, SrcMD5, NULL) != 0)
-			{
-				int a = 0;
-			}
-
-			if (GetMD5(_DestFileFullPath, DestMD5, NULL) != 0)
-			{
-				int a = 0;
-			}
-
-			bool SameMD5 = true;
-			for (int j = 0; j < MD5LEN; ++j)
-			{
-				if (SrcMD5[j] != DestMD5[j])
-				{
-					SameMD5 = false;
-					break;
-				}
-			}
-
-			if (SameMD5)
-			{
-				ResultListCtrl.AddString(RelDestFileName);
-				DupFilesMap.insert(std::pair<CString, CString>(RelDestFileName, *finditer));
-			}
-		}
-	}
-
-	CString InfoTextMessage;
-	InfoTextMessage.Format(TEXT("%d Files Found"), DupFilesMap.size());
-	SetInfoText(InfoTextMessage);
-
-	for (int i = 0; i < ResultListCtrl.GetCount(); i++)
-	{
-		ResultListCtrl.SetSel(i, true);
-	}
+	FindButton.EnableWindow(FALSE);
+	RemoveButton.EnableWindow(FALSE);
+	SrcPathBrowserButton.EnableWindow(FALSE);
+	DestPathBrowserButton.EnableWindow(FALSE);
 }
 
 void CDupFileFinderDlg::OnBnClickedRemoveButton()
 {
+	// 메세지로 확인
+	if (MessageBox(TEXT("Caution!. All selected files will be deleted!!!"), TEXT("Confirm"), MB_YESNO) != IDYES)
+	{
+		return;
+	}
+
 	CString DestFilePath;
 	DestPathEdit.GetWindowText(DestFilePath);
 
@@ -329,13 +334,15 @@ void CDupFileFinderDlg::OnBnClickedRemoveButton()
 
 	// List Ctrl에서 선택된 파일만 삭제한다.
 	int maxItemCount = ResultListCtrl.GetCount() + 1;
-	int* pSelectedItems = new int[maxItemCount];
+	std::unique_ptr<int> pSelectedItems(new int[maxItemCount]);
 
-	int selectedCount = ResultListCtrl.GetSelItems(maxItemCount, pSelectedItems);
+	int selectedCount = ResultListCtrl.GetSelItems(maxItemCount, pSelectedItems.get());
+	std::sort(pSelectedItems.get(), pSelectedItems.get() + selectedCount, std::less<int>());
+	
 	for (int i = 0; i < selectedCount; ++i)
 	{
 		CString RelDestFileName;
-		ResultListCtrl.GetText(pSelectedItems[i], RelDestFileName);
+		ResultListCtrl.GetText(pSelectedItems.get()[i], RelDestFileName);
 
 		int FindPosDest = RelDestFileName.ReverseFind(TEXT('\\'));
 
@@ -344,9 +351,19 @@ void CDupFileFinderDlg::OnBnClickedRemoveButton()
 		DeleteFiles.push_back(DestFileFullPath);
 	}
 
+	// 휴지통으로 이동한다.
 	RecycleFilesOnWindows(DeleteFiles);
 
-	// TODO : 삭제한 파일을 List Ctrl에서 지운다.
+	// 삭제한 파일을 List Ctrl에서 지운다.
+	for (int i = selectedCount - 1; i >= 0; --i)
+	{
+		if (pSelectedItems.get()[i] < ResultListCtrl.GetCount())
+			ResultListCtrl.DeleteString(pSelectedItems.get()[i]);
+	}
+
+	CString InfoTextMessage;
+	InfoTextMessage.Format(TEXT("%d Files are moved to recycled Bin"), DeleteFiles.size());
+	SetInfoText(InfoTextMessage);
 }
 
 bool CDupFileFinderDlg::GetExts(std::vector<CString>& OutExts)
@@ -370,4 +387,60 @@ bool CDupFileFinderDlg::GetExts(std::vector<CString>& OutExts)
 void CDupFileFinderDlg::SetInfoText(const CString& InText)
 {
 	InfoTextStatic.SetWindowText(InText);
+}
+
+LRESULT CDupFileFinderDlg::OnUserEventUpdateProgressBar(WPARAM wParam, LPARAM lParam)
+{
+	int DestIndex = (int)lParam;
+	if (DestIndex < FindFilesParam.DestFileList.size())
+	{
+		FindProgressBar.SetPos(DestIndex + 1);
+	}
+	
+	return TRUE;
+}
+
+LRESULT CDupFileFinderDlg::OnUserEventFindCompleted(WPARAM wParam, LPARAM lParam)
+{
+	FindButton.EnableWindow(TRUE);
+	RemoveButton.EnableWindow(TRUE);
+	SrcPathBrowserButton.EnableWindow(TRUE);
+	DestPathBrowserButton.EnableWindow(TRUE);
+
+	CString InfoTextMessage;
+	InfoTextMessage.Format(TEXT("%d Files Found"), ResultListCtrl.GetCount());
+	SetInfoText(InfoTextMessage);
+
+	for (int i = 0; i < ResultListCtrl.GetCount(); i++)
+	{
+		ResultListCtrl.SetSel(i, true);
+	}
+
+	return TRUE;
+}
+
+LRESULT CDupFileFinderDlg::OnUserEventFindDestCompleted(WPARAM wParam, LPARAM lParam)
+{
+	FindProgressBar.SetRange(0, (short)FindFilesParam.DestFileList.size());
+	FindProgressBar.SetPos(0);
+	return TRUE;
+}
+
+LRESULT CDupFileFinderDlg::OnUserEventFindSrcFile(WPARAM wParam, LPARAM lParam)
+{
+	int DestIndex = (int)lParam;
+	if (DestIndex < FindFilesParam.DestFileList.size())
+	{
+		ResultListCtrl.AddString(FindFilesParam.DestFileList[DestIndex]);
+	}
+	
+	return TRUE;
+}
+
+
+void CDupFileFinderDlg::OnLbnSelchangeResultList()
+{
+	CString InfoTextMessage;
+	InfoTextMessage.Format(TEXT("%d Files are selected"), ResultListCtrl.GetSelCount());
+	SetInfoText(InfoTextMessage);
 }

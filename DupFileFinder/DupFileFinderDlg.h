@@ -7,6 +7,9 @@
 
 #include <map>
 #include <vector>
+#include "afxcmn.h"
+
+#include "utils.h"
 
 
 // CDupFileFinderDlg 대화 상자
@@ -29,7 +32,9 @@ public:
 protected:
 	HICON m_hIcon;
 
-	std::map<CString, CString> DupFilesMap;
+	sFindFilesParam FindFilesParam;
+	DWORD FindThreadID;
+	HANDLE hFindThread;
 
 	bool GetExts(std::vector<CString>& OutExts);
 	void SetInfoText(const CString& InText);
@@ -49,5 +54,15 @@ public:
 	CListBox ResultListCtrl;
 	afx_msg void OnBnClickedFindButton();
 	afx_msg void OnBnClickedRemoveButton();
+	afx_msg LRESULT OnUserEventUpdateProgressBar(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnUserEventFindCompleted(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnUserEventFindDestCompleted(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnUserEventFindSrcFile(WPARAM wParam, LPARAM lParam);
 	CStatic InfoTextStatic;
+	CProgressCtrl FindProgressBar;
+	CButton FindButton;
+	CButton RemoveButton;
+	afx_msg void OnLbnSelchangeResultList();
+	CButton DestPathBrowserButton;
+	CButton SrcPathBrowserButton;
 };

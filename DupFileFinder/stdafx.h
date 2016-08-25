@@ -51,4 +51,8 @@
 #endif
 #endif
 
+#define WM_USER_UPDATE_PROGRESS			WM_USER + 1
+#define WM_USER_FIND_COMPLETE			WM_USER + 2
+#define WM_USER_FIND_DEST_COMPLETED		WM_USER + 3
+#define WM_USER_FIND_SRC_FILE			WM_USER + 4
 
