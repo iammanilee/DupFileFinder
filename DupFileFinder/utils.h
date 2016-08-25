@@ -22,6 +22,17 @@ struct comparePaths
 	}
 };
 
+struct sFindFilesParam
+{
+	HWND hwnd;
+	std::vector<CString> Exts;
+	CString SrcFilePath;
+	CString DestFilePath;
+	std::vector<CString> DestFileList;
+	std::map<CString, CString> DupFilesMap;	// <Dest, Src>
+	INT ProgressBarID;
+};
+
 void RecursiveFileFind(std::vector<CString>& outFiles, const CString& inPath, const CString& inRelPath, const CString& inFileName);
 
 void RecursiveFileFind(std::set<CString, comparePaths>& outFiles, const CString& inPath, const CString& inRelPath, const CString& inFileName);
@@ -31,3 +42,5 @@ void RecycleFileOnWindows(const CString& inFileName);
 void RecycleFilesOnWindows(const std::vector<CString> inFiles);
 
 DWORD GetMD5(const TCHAR* InFileName, TCHAR* OutMD5Characters, TCHAR* OutErrorMessage);
+
+DWORD WINAPI FindDuplicatedFunc(PVOID pvParam);

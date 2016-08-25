@@ -253,3 +253,96 @@ DWORD GetMD5(const TCHAR* InFileName, TCHAR* OutMD5Characters, TCHAR* OutErrorMe
 
 	return dwStatus;
 }
+
+DWORD WINAPI FindDuplicatedFunc(PVOID pvParam)
+{
+	sFindFilesParam* FindFilesParam = (sFindFilesParam*)pvParam;
+
+	if (!FindFilesParam)
+		return 0;
+
+	const CString& SrcFilePath = FindFilesParam->SrcFilePath;
+	const CString& DestFilePath = FindFilesParam->DestFilePath;
+
+	const std::vector<CString>& Exts = FindFilesParam->Exts;
+
+	std::vector<CString>& DestFiles = FindFilesParam->DestFileList;
+	for (int i = 0; i < Exts.size(); ++i)
+	{
+		const CString& Ext = Exts[i];
+		RecursiveFileFind(DestFiles, DestFilePath, TEXT(""), TEXT("*.") + Ext);
+	}
+
+	std::set<CString, comparePaths> SrcFiles;
+	for (int i = 0; i < Exts.size(); ++i)
+	{
+		const CString& Ext = Exts[i];
+		RecursiveFileFind(SrcFiles, SrcFilePath, TEXT(""), TEXT("*.") + Ext);
+	}
+
+	SendMessage(FindFilesParam->hwnd, WM_USER_FIND_DEST_COMPLETED, 0, 0);
+
+	std::map<CString, CString>& DupFilesMap = FindFilesParam->DupFilesMap;
+
+	for (int i = 0; i < DestFiles.size(); ++i)
+	{
+		CString& RelDestFileName = DestFiles[i];
+
+		int FindPos = RelDestFileName.ReverseFind(TEXT('\\'));
+
+		CString DestFileName = (FindPos == -1) ? RelDestFileName : RelDestFileName.Mid(FindPos + 1);
+
+		// set으로 가져올 때도, 사실은 상대 path로 가져와서,
+		// find 할 때, 비교함수를 정의해서, 한다.
+		auto finditer = SrcFiles.find(DestFileName);
+		if (finditer != SrcFiles.end())
+		{
+			// 파일 비교
+			TCHAR SrcMD5[2 * MD5LEN + 1] = { 0, };
+			TCHAR DestMD5[2 * MD5LEN + 1] = { 0, };
+
+			const CString& RelSrcFileName = *finditer;
+
+			int FindPosSrc = RelSrcFileName.ReverseFind(TEXT('\\'));
+			int FindPosDest = RelDestFileName.ReverseFind(TEXT('\\'));
+
+			CString SrcFileFullPath = (FindPosSrc != -1) ? SrcFilePath + RelSrcFileName : SrcFilePath + TEXT("\\") + RelSrcFileName;
+			CString DestFileFullPath = (FindPosDest != -1) ? DestFilePath + RelDestFileName : DestFilePath + TEXT("\\") + RelDestFileName;
+
+			const TCHAR* _SrcFileFullPath = SrcFileFullPath.GetBuffer();
+			const TCHAR* _DestFileFullPath = DestFileFullPath.GetBuffer();
+
+			if (GetMD5(_SrcFileFullPath, SrcMD5, NULL) != 0)
+			{
+				int a = 0;
+			}
+
+			if (GetMD5(_DestFileFullPath, DestMD5, NULL) != 0)
+			{
+				int a = 0;
+			}
+
+			bool SameMD5 = true;
+			for (int j = 0; j < MD5LEN; ++j)
+			{
+				if (SrcMD5[j] != DestMD5[j])
+				{
+					SameMD5 = false;
+					break;
+				}
+			}
+
+			if (SameMD5)
+			{
+				DupFilesMap.insert(std::pair<CString, CString>(RelDestFileName, *finditer));
+				SendMessage(FindFilesParam->hwnd, WM_USER_FIND_SRC_FILE, FindFilesParam->ProgressBarID, i);
+			}
+		}
+
+		SendMessage(FindFilesParam->hwnd, WM_USER_UPDATE_PROGRESS, FindFilesParam->ProgressBarID, i);
+	}
+
+	SendMessage(FindFilesParam->hwnd, WM_USER_FIND_COMPLETE, 0, 0);
+
+	return 0;
+}
