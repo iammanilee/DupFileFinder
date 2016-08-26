@@ -65,4 +65,6 @@ public:
 	afx_msg void OnLbnSelchangeResultList();
 	CButton DestPathBrowserButton;
 	CButton SrcPathBrowserButton;
+	CButton OKButton;
+	CButton CancelButton;
 };

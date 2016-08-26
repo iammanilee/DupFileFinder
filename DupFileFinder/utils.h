@@ -41,6 +41,8 @@ void RecycleFileOnWindows(const CString& inFileName);
 
 void RecycleFilesOnWindows(const std::vector<CString> inFiles);
 
+__int64 FileSize(const CString& inFileName);
+
 DWORD GetMD5(const TCHAR* InFileName, TCHAR* OutMD5Characters, TCHAR* OutErrorMessage);
 
 DWORD WINAPI FindDuplicatedFunc(PVOID pvParam);

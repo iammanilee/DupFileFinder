@@ -73,6 +73,8 @@ void CDupFileFinderDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_REMVOE_BUTTON, RemoveButton);
 	DDX_Control(pDX, IDC_DEST_PATH_BROWSER_BUTTON, DestPathBrowserButton);
 	DDX_Control(pDX, IDC_SRC_PATH_BROWSER_BUTTON, SrcPathBrowserButton);
+	DDX_Control(pDX, IDOK, OKButton);
+	DDX_Control(pDX, IDCANCEL, CancelButton);
 }
 
 BEGIN_MESSAGE_MAP(CDupFileFinderDlg, CDialogEx)
@@ -317,6 +319,8 @@ void CDupFileFinderDlg::OnBnClickedFindButton()
 	RemoveButton.EnableWindow(FALSE);
 	SrcPathBrowserButton.EnableWindow(FALSE);
 	DestPathBrowserButton.EnableWindow(FALSE);
+	OKButton.EnableWindow(FALSE);
+	CancelButton.EnableWindow(FALSE);
 }
 
 void CDupFileFinderDlg::OnBnClickedRemoveButton()
@@ -406,6 +410,8 @@ LRESULT CDupFileFinderDlg::OnUserEventFindCompleted(WPARAM wParam, LPARAM lParam
 	RemoveButton.EnableWindow(TRUE);
 	SrcPathBrowserButton.EnableWindow(TRUE);
 	DestPathBrowserButton.EnableWindow(TRUE);
+	OKButton.EnableWindow(TRUE);
+	CancelButton.EnableWindow(TRUE);
 
 	CString InfoTextMessage;
 	InfoTextMessage.Format(TEXT("%d Files Found"), ResultListCtrl.GetCount());

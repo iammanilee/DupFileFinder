@@ -312,14 +312,21 @@ DWORD WINAPI FindDuplicatedFunc(PVOID pvParam)
 			const TCHAR* _SrcFileFullPath = SrcFileFullPath.GetBuffer();
 			const TCHAR* _DestFileFullPath = DestFileFullPath.GetBuffer();
 
+			// compare size first
+			__int64 SrcFileSize = FileSize(SrcFileFullPath);
+			__int64 DestFileSize = FileSize(DestFileFullPath);
+
+			if (SrcFileSize != DestFileSize)
+				continue;
+
 			if (GetMD5(_SrcFileFullPath, SrcMD5, NULL) != 0)
 			{
-				int a = 0;
+				continue;
 			}
 
 			if (GetMD5(_DestFileFullPath, DestMD5, NULL) != 0)
 			{
-				int a = 0;
+				continue;
 			}
 
 			bool SameMD5 = true;
@@ -345,4 +352,15 @@ DWORD WINAPI FindDuplicatedFunc(PVOID pvParam)
 	SendMessage(FindFilesParam->hwnd, WM_USER_FIND_COMPLETE, 0, 0);
 
 	return 0;
+}
+
+__int64 FileSize(const CString& inFileName)
+{
+	WIN32_FILE_ATTRIBUTE_DATA fad;
+	if (!GetFileAttributesEx(inFileName, GetFileExInfoStandard, &fad))
+		return -1; // error condition, could call GetLastError to find out more
+	LARGE_INTEGER size;
+	size.HighPart = fad.nFileSizeHigh;
+	size.LowPart = fad.nFileSizeLow;
+	return size.QuadPart;
 }
