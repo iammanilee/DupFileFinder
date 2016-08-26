@@ -75,6 +75,11 @@ void CDupFileFinderDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_SRC_PATH_BROWSER_BUTTON, SrcPathBrowserButton);
 	DDX_Control(pDX, IDOK, OKButton);
 	DDX_Control(pDX, IDCANCEL, CancelButton);
+	DDX_Control(pDX, IDC_CHECK_JPG, CheckBoxJPG);
+	DDX_Control(pDX, IDC_CHECK_MP4, CheckBoxMP4);
+	DDX_Control(pDX, IDC_CHECK_AVI, CheckBoxAVI);
+	DDX_Control(pDX, IDC_CHECK_3GP, CheckBox3GP);
+	DDX_Control(pDX, IDC_CHECK_MOV, CheckBoxMOV);
 }
 
 BEGIN_MESSAGE_MAP(CDupFileFinderDlg, CDialogEx)
@@ -90,6 +95,11 @@ BEGIN_MESSAGE_MAP(CDupFileFinderDlg, CDialogEx)
 	ON_MESSAGE(WM_USER_FIND_DEST_COMPLETED, &CDupFileFinderDlg::OnUserEventFindDestCompleted)
 	ON_MESSAGE(WM_USER_FIND_SRC_FILE, &CDupFileFinderDlg::OnUserEventFindSrcFile)
 	ON_LBN_SELCHANGE(IDC_RESULT_LIST, &CDupFileFinderDlg::OnLbnSelchangeResultList)
+	ON_BN_CLICKED(IDC_CHECK_JPG, &CDupFileFinderDlg::OnBnClickedJpgButton)
+	ON_BN_CLICKED(IDC_CHECK_MP4, &CDupFileFinderDlg::OnBnClickedMp4Button)
+	ON_BN_CLICKED(IDC_CHECK_AVI, &CDupFileFinderDlg::OnBnClickedAviButton)
+	ON_BN_CLICKED(IDC_CHECK_3GP, &CDupFileFinderDlg::OnBnClicked3gpButton)
+	ON_BN_CLICKED(IDC_CHECK_MOV, &CDupFileFinderDlg::OnBnClickedCheckMov)
 END_MESSAGE_MAP()
 
 
@@ -308,7 +318,7 @@ void CDupFileFinderDlg::OnBnClickedFindButton()
 
 	FindFilesParam.hwnd = GetSafeHwnd();
 
-	if (!GetExts(FindFilesParam.Exts))
+	if (!GetExtensions(FindFilesParam.Exts))
 	{
 		return;
 	}
@@ -321,6 +331,14 @@ void CDupFileFinderDlg::OnBnClickedFindButton()
 	DestPathBrowserButton.EnableWindow(FALSE);
 	OKButton.EnableWindow(FALSE);
 	CancelButton.EnableWindow(FALSE);
+	SrcPathEdit.EnableWindow(FALSE);
+	DestPathEdit.EnableWindow(FALSE);
+	ExtsEdit.EnableWindow(FALSE);
+	CheckBoxJPG.EnableWindow(FALSE);
+	CheckBoxMP4.EnableWindow(FALSE);
+	CheckBoxAVI.EnableWindow(FALSE);
+	CheckBox3GP.EnableWindow(FALSE);
+	CheckBoxMOV.EnableWindow(FALSE);
 }
 
 void CDupFileFinderDlg::OnBnClickedRemoveButton()
@@ -370,7 +388,7 @@ void CDupFileFinderDlg::OnBnClickedRemoveButton()
 	SetInfoText(InfoTextMessage);
 }
 
-bool CDupFileFinderDlg::GetExts(std::vector<CString>& OutExts)
+bool CDupFileFinderDlg::GetExtensions(std::vector<CString>& OutExts)
 {
 	// 확장자를 가져온다.
 	CString ExtsLine;
@@ -386,6 +404,17 @@ bool CDupFileFinderDlg::GetExts(std::vector<CString>& OutExts)
 	};
 
 	return OutExts.size() != 0;
+}
+
+void CDupFileFinderDlg::SetExtensions(const std::vector<CString>& InExts)
+{
+	CString ExtsLine;
+	for (int i = 0; i < InExts.size(); ++i)
+	{
+		ExtsLine += InExts[i] + TEXT(" ");
+	}
+
+	ExtsEdit.SetWindowText(ExtsLine);
 }
 
 void CDupFileFinderDlg::SetInfoText(const CString& InText)
@@ -412,6 +441,14 @@ LRESULT CDupFileFinderDlg::OnUserEventFindCompleted(WPARAM wParam, LPARAM lParam
 	DestPathBrowserButton.EnableWindow(TRUE);
 	OKButton.EnableWindow(TRUE);
 	CancelButton.EnableWindow(TRUE);
+	SrcPathEdit.EnableWindow(TRUE);
+	DestPathEdit.EnableWindow(TRUE);
+	ExtsEdit.EnableWindow(TRUE);
+	CheckBoxJPG.EnableWindow(TRUE);
+	CheckBoxMP4.EnableWindow(TRUE);
+	CheckBoxAVI.EnableWindow(TRUE);
+	CheckBox3GP.EnableWindow(TRUE);
+	CheckBoxMOV.EnableWindow(TRUE);
 
 	CString InfoTextMessage;
 	InfoTextMessage.Format(TEXT("%d Files Found"), ResultListCtrl.GetCount());
@@ -449,4 +486,113 @@ void CDupFileFinderDlg::OnLbnSelchangeResultList()
 	CString InfoTextMessage;
 	InfoTextMessage.Format(TEXT("%d Files are selected"), ResultListCtrl.GetSelCount());
 	SetInfoText(InfoTextMessage);
+}
+
+void CDupFileFinderDlg::AddExtension(const CString& InExtension)
+{
+	std::vector<CString> Extensions;
+	GetExtensions(Extensions);
+
+	for (int i = 0; i < Extensions.size(); ++i)
+	{
+		if (Extensions[i].CompareNoCase(InExtension) == 0)
+		{
+			return;
+		}
+	}
+
+	Extensions.push_back(InExtension);
+
+	SetExtensions(Extensions);
+}
+
+void CDupFileFinderDlg::RemoveExtension(const CString& InExtension)
+{
+	std::vector<CString> Extensions;
+	GetExtensions(Extensions);
+
+	for(auto iter = Extensions.begin();iter != Extensions.end(); ++iter)
+	{
+		if ((*iter).CompareNoCase(InExtension) == 0)
+		{
+			Extensions.erase(iter);
+			break;
+		}
+	}
+
+	SetExtensions(Extensions);
+}
+
+void CDupFileFinderDlg::OnBnClickedJpgButton()
+{
+	BOOL Checked = CheckBoxJPG.GetCheck();
+
+	if (Checked)
+	{
+		AddExtension(TEXT("jpg"));
+	}
+	else
+	{
+		RemoveExtension(TEXT("jpg"));
+	}
+}
+
+
+void CDupFileFinderDlg::OnBnClickedMp4Button()
+{
+	BOOL Checked = CheckBoxMP4.GetCheck();
+
+	if (Checked)
+	{
+		AddExtension(TEXT("mp4"));
+	}
+	else
+	{
+		RemoveExtension(TEXT("mp4"));
+	}
+}
+
+
+void CDupFileFinderDlg::OnBnClickedAviButton()
+{
+	BOOL Checked = CheckBoxAVI.GetCheck();
+
+	if (Checked)
+	{
+		AddExtension(TEXT("avi"));
+	}
+	else
+	{
+		RemoveExtension(TEXT("avi"));
+	}
+}
+
+
+void CDupFileFinderDlg::OnBnClicked3gpButton()
+{
+	BOOL Checked = CheckBox3GP.GetCheck();
+
+	if (Checked)
+	{
+		AddExtension(TEXT("3gp"));
+	}
+	else
+	{
+		RemoveExtension(TEXT("3gp"));
+	}
+}
+
+
+void CDupFileFinderDlg::OnBnClickedCheckMov()
+{
+	BOOL Checked = CheckBoxMOV.GetCheck();
+
+	if (Checked)
+	{
+		AddExtension(TEXT("mov"));
+	}
+	else
+	{
+		RemoveExtension(TEXT("mov"));
+	}
 }

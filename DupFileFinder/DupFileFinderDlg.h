@@ -36,7 +36,10 @@ protected:
 	DWORD FindThreadID;
 	HANDLE hFindThread;
 
-	bool GetExts(std::vector<CString>& OutExts);
+	bool GetExtensions(std::vector<CString>& OutExts);
+	void SetExtensions(const std::vector<CString>& InExts);
+	void AddExtension(const CString& InExtension);
+	void RemoveExtension(const CString& InExtension);
 	void SetInfoText(const CString& InText);
 
 	// 생성된 메시지 맵 함수
@@ -67,4 +70,14 @@ public:
 	CButton SrcPathBrowserButton;
 	CButton OKButton;
 	CButton CancelButton;
+	afx_msg void OnBnClickedJpgButton();
+	afx_msg void OnBnClickedMp4Button();
+	afx_msg void OnBnClickedAviButton();
+	afx_msg void OnBnClicked3gpButton();
+	CButton CheckBoxJPG;
+	CButton CheckBoxMP4;
+	CButton CheckBoxAVI;
+	CButton CheckBox3GP;
+	CButton CheckBoxMOV;
+	afx_msg void OnBnClickedCheckMov();
 };
