@@ -299,6 +299,42 @@ void CDupFileFinderDlg::OnBnClickedDestPathBrowserButton()
 	}
 }
 
+void CDupFileFinderDlg::EnableAllControls()
+{
+	FindButton.EnableWindow(TRUE);
+	RemoveButton.EnableWindow(TRUE);
+	SrcPathBrowserButton.EnableWindow(TRUE);
+	DestPathBrowserButton.EnableWindow(TRUE);
+	OKButton.EnableWindow(TRUE);
+	CancelButton.EnableWindow(TRUE);
+	SrcPathEdit.EnableWindow(TRUE);
+	DestPathEdit.EnableWindow(TRUE);
+	ExtsEdit.EnableWindow(TRUE);
+	CheckBoxJPG.EnableWindow(TRUE);
+	CheckBoxMP4.EnableWindow(TRUE);
+	CheckBoxAVI.EnableWindow(TRUE);
+	CheckBox3GP.EnableWindow(TRUE);
+	CheckBoxMOV.EnableWindow(TRUE);
+}
+
+void CDupFileFinderDlg::DisableAllControls()
+{
+	FindButton.EnableWindow(FALSE);
+	RemoveButton.EnableWindow(FALSE);
+	SrcPathBrowserButton.EnableWindow(FALSE);
+	DestPathBrowserButton.EnableWindow(FALSE);
+	OKButton.EnableWindow(FALSE);
+	CancelButton.EnableWindow(FALSE);
+	SrcPathEdit.EnableWindow(FALSE);
+	DestPathEdit.EnableWindow(FALSE);
+	ExtsEdit.EnableWindow(FALSE);
+	CheckBoxJPG.EnableWindow(FALSE);
+	CheckBoxMP4.EnableWindow(FALSE);
+	CheckBoxAVI.EnableWindow(FALSE);
+	CheckBox3GP.EnableWindow(FALSE);
+	CheckBoxMOV.EnableWindow(FALSE);
+}
+
 void CDupFileFinderDlg::OnBnClickedFindButton()
 {
 	FindFilesParam.Exts.clear();
@@ -325,20 +361,7 @@ void CDupFileFinderDlg::OnBnClickedFindButton()
 
 	hFindThread = CreateThread(NULL, 0, FindDuplicatedFunc, &FindFilesParam, 0, &FindThreadID);
 
-	FindButton.EnableWindow(FALSE);
-	RemoveButton.EnableWindow(FALSE);
-	SrcPathBrowserButton.EnableWindow(FALSE);
-	DestPathBrowserButton.EnableWindow(FALSE);
-	OKButton.EnableWindow(FALSE);
-	CancelButton.EnableWindow(FALSE);
-	SrcPathEdit.EnableWindow(FALSE);
-	DestPathEdit.EnableWindow(FALSE);
-	ExtsEdit.EnableWindow(FALSE);
-	CheckBoxJPG.EnableWindow(FALSE);
-	CheckBoxMP4.EnableWindow(FALSE);
-	CheckBoxAVI.EnableWindow(FALSE);
-	CheckBox3GP.EnableWindow(FALSE);
-	CheckBoxMOV.EnableWindow(FALSE);
+	DisableAllControls();
 }
 
 void CDupFileFinderDlg::OnBnClickedRemoveButton()
@@ -348,6 +371,8 @@ void CDupFileFinderDlg::OnBnClickedRemoveButton()
 	{
 		return;
 	}
+
+	DisableAllControls();
 
 	CString DestFilePath;
 	DestPathEdit.GetWindowText(DestFilePath);
@@ -386,6 +411,8 @@ void CDupFileFinderDlg::OnBnClickedRemoveButton()
 	CString InfoTextMessage;
 	InfoTextMessage.Format(TEXT("%d Files are moved to recycled Bin"), DeleteFiles.size());
 	SetInfoText(InfoTextMessage);
+
+	EnableAllControls();
 }
 
 bool CDupFileFinderDlg::GetExtensions(std::vector<CString>& OutExts)
@@ -435,20 +462,7 @@ LRESULT CDupFileFinderDlg::OnUserEventUpdateProgressBar(WPARAM wParam, LPARAM lP
 
 LRESULT CDupFileFinderDlg::OnUserEventFindCompleted(WPARAM wParam, LPARAM lParam)
 {
-	FindButton.EnableWindow(TRUE);
-	RemoveButton.EnableWindow(TRUE);
-	SrcPathBrowserButton.EnableWindow(TRUE);
-	DestPathBrowserButton.EnableWindow(TRUE);
-	OKButton.EnableWindow(TRUE);
-	CancelButton.EnableWindow(TRUE);
-	SrcPathEdit.EnableWindow(TRUE);
-	DestPathEdit.EnableWindow(TRUE);
-	ExtsEdit.EnableWindow(TRUE);
-	CheckBoxJPG.EnableWindow(TRUE);
-	CheckBoxMP4.EnableWindow(TRUE);
-	CheckBoxAVI.EnableWindow(TRUE);
-	CheckBox3GP.EnableWindow(TRUE);
-	CheckBoxMOV.EnableWindow(TRUE);
+	EnableAllControls();
 
 	CString InfoTextMessage;
 	InfoTextMessage.Format(TEXT("%d Files Found"), ResultListCtrl.GetCount());

@@ -42,6 +42,9 @@ protected:
 	void RemoveExtension(const CString& InExtension);
 	void SetInfoText(const CString& InText);
 
+	void EnableAllControls();
+	void DisableAllControls();
+
 	// 생성된 메시지 맵 함수
 	virtual BOOL OnInitDialog();
 	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
