@@ -36,6 +36,10 @@ protected:
 	DWORD FindThreadID;
 	HANDLE hFindThread;
 
+	CComPtr<ITaskbarList3> TaskbarList;
+
+	static const UINT TaskbarBtnCreatedMsg;
+
 	bool GetExtensions(std::vector<CString>& OutExts);
 	void SetExtensions(const std::vector<CString>& InExts);
 	void AddExtension(const CString& InExtension);
@@ -82,5 +86,8 @@ public:
 	CButton CheckBoxAVI;
 	CButton CheckBox3GP;
 	CButton CheckBoxMOV;
-	afx_msg void OnBnClickedCheckMov();
+	afx_msg void OnBnClickedCheckMovButton();
+	afx_msg LRESULT OnTaskbarBtnCreated(WPARAM wParam, LPARAM lParam);
+	afx_msg void OnDestroy();
 };
+

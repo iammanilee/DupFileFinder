@@ -7,6 +7,8 @@
 #include "DupFileFinderDlg.h"
 #include "afxdialogex.h"
 
+#include <VersionHelpers.h>
+
 #include <vector>
 #include <set>
 #include <algorithm>
@@ -16,6 +18,7 @@
 #define new DEBUG_NEW
 #endif
 
+const UINT CDupFileFinderDlg::TaskbarBtnCreatedMsg = RegisterWindowMessage(TEXT("TaskbarButtonCreated"));
 
 // 응용 프로그램 정보에 사용되는 CAboutDlg 대화 상자입니다.
 
@@ -99,7 +102,9 @@ BEGIN_MESSAGE_MAP(CDupFileFinderDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_CHECK_MP4, &CDupFileFinderDlg::OnBnClickedMp4Button)
 	ON_BN_CLICKED(IDC_CHECK_AVI, &CDupFileFinderDlg::OnBnClickedAviButton)
 	ON_BN_CLICKED(IDC_CHECK_3GP, &CDupFileFinderDlg::OnBnClicked3gpButton)
-	ON_BN_CLICKED(IDC_CHECK_MOV, &CDupFileFinderDlg::OnBnClickedCheckMov)
+	ON_BN_CLICKED(IDC_CHECK_MOV, &CDupFileFinderDlg::OnBnClickedCheckMovButton)
+	ON_REGISTERED_MESSAGE(CDupFileFinderDlg::TaskbarBtnCreatedMsg, &CDupFileFinderDlg::OnTaskbarBtnCreated)
+	ON_WM_DESTROY()
 END_MESSAGE_MAP()
 
 
@@ -361,6 +366,9 @@ void CDupFileFinderDlg::OnBnClickedFindButton()
 
 	hFindThread = CreateThread(NULL, 0, FindDuplicatedFunc, &FindFilesParam, 0, &FindThreadID);
 
+	if (TaskbarList)
+		TaskbarList->SetProgressState(GetSafeHwnd(), TBPF_NOPROGRESS);
+
 	DisableAllControls();
 }
 
@@ -455,8 +463,13 @@ LRESULT CDupFileFinderDlg::OnUserEventUpdateProgressBar(WPARAM wParam, LPARAM lP
 	if (DestIndex < FindFilesParam.DestFileList.size())
 	{
 		FindProgressBar.SetPos(DestIndex + 1);
+
+		if (TaskbarList)
+		{
+			TaskbarList->SetProgressValue(GetSafeHwnd(), DestIndex + 1, FindFilesParam.DestFileList.size());
+		}
 	}
-	
+
 	return TRUE;
 }
 
@@ -473,6 +486,11 @@ LRESULT CDupFileFinderDlg::OnUserEventFindCompleted(WPARAM wParam, LPARAM lParam
 		ResultListCtrl.SetSel(i, true);
 	}
 
+	if (TaskbarList)
+	{
+		TaskbarList->SetProgressState(GetSafeHwnd(), TBPF_NOPROGRESS);
+	}
+
 	return TRUE;
 }
 
@@ -480,6 +498,7 @@ LRESULT CDupFileFinderDlg::OnUserEventFindDestCompleted(WPARAM wParam, LPARAM lP
 {
 	FindProgressBar.SetRange(0, (short)FindFilesParam.DestFileList.size());
 	FindProgressBar.SetPos(0);
+
 	return TRUE;
 }
 
@@ -493,7 +512,6 @@ LRESULT CDupFileFinderDlg::OnUserEventFindSrcFile(WPARAM wParam, LPARAM lParam)
 	
 	return TRUE;
 }
-
 
 void CDupFileFinderDlg::OnLbnSelchangeResultList()
 {
@@ -597,7 +615,7 @@ void CDupFileFinderDlg::OnBnClicked3gpButton()
 }
 
 
-void CDupFileFinderDlg::OnBnClickedCheckMov()
+void CDupFileFinderDlg::OnBnClickedCheckMovButton()
 {
 	BOOL Checked = CheckBoxMOV.GetCheck();
 
@@ -608,5 +626,26 @@ void CDupFileFinderDlg::OnBnClickedCheckMov()
 	else
 	{
 		RemoveExtension(TEXT("mov"));
+	}
+}
+
+LRESULT CDupFileFinderDlg::OnTaskbarBtnCreated(WPARAM wParam, LPARAM lParam)
+{
+	if (IsWindows7OrGreater())
+	{
+		TaskbarList.Release();
+		TaskbarList.CoCreateInstance(CLSID_TaskbarList);
+	}
+
+	return 0;
+}
+
+void CDupFileFinderDlg::OnDestroy()
+{
+	CDialogEx::OnDestroy();
+
+	if (TaskbarList)
+	{
+		TaskbarList.Release();
 	}
 }
