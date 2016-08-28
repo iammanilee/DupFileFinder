@@ -33,10 +33,6 @@ struct sFindFilesParam
 	INT ProgressBarID;
 };
 
-void RecursiveFileFind(std::vector<CString>& outFiles, const CString& inPath, const CString& inRelPath, const CString& inFileName);
-
-void RecursiveFileFind(std::set<CString, comparePaths>& outFiles, const CString& inPath, const CString& inRelPath, const CString& inFileName);
-
 void RecycleFileOnWindows(const CString& inFileName);
 
 void RecycleFilesOnWindows(const std::vector<CString> inFiles);

@@ -46,7 +46,8 @@ void RecursiveFileFind(std::vector<CString>& outFiles, const CString& inPath, co
 }
 
 // inFileName을 찾아서, 상대 경로를 포함해서, outFIles에 담음.
-void RecursiveFileFind(std::set<CString, comparePaths>& outFiles, const CString& inPath, const CString& inRelPath, const CString& inFileName)
+template<class T>
+void RecursiveFileFind(T& outFiles, const CString& inPath, const CString& inRelPath, const CString& inFileName)
 {
 	CFileFind finder;
 
@@ -273,7 +274,7 @@ DWORD WINAPI FindDuplicatedFunc(PVOID pvParam)
 		RecursiveFileFind(DestFiles, DestFilePath, TEXT(""), TEXT("*.") + Ext);
 	}
 
-	std::set<CString, comparePaths> SrcFiles;
+	std::multiset<CString, comparePaths> SrcFiles;
 	for (int i = 0; i < Exts.size(); ++i)
 	{
 		const CString& Ext = Exts[i];
@@ -294,55 +295,60 @@ DWORD WINAPI FindDuplicatedFunc(PVOID pvParam)
 
 		// set으로 가져올 때도, 사실은 상대 path로 가져와서,
 		// find 할 때, 비교함수를 정의해서, 한다.
-		auto finditer = SrcFiles.find(DestFileName);
-		if (finditer != SrcFiles.end())
+		auto lowerIter = SrcFiles.lower_bound(DestFileName);
+		auto upperIter = SrcFiles.upper_bound(DestFileName);
+
+		if (lowerIter != SrcFiles.end())
 		{
-			// 파일 비교
-			TCHAR SrcMD5[2 * MD5LEN + 1] = { 0, };
-			TCHAR DestMD5[2 * MD5LEN + 1] = { 0, };
-
-			const CString& RelSrcFileName = *finditer;
-
-			int FindPosSrc = RelSrcFileName.ReverseFind(TEXT('\\'));
-			int FindPosDest = RelDestFileName.ReverseFind(TEXT('\\'));
-
-			CString SrcFileFullPath = (FindPosSrc != -1) ? SrcFilePath + RelSrcFileName : SrcFilePath + TEXT("\\") + RelSrcFileName;
-			CString DestFileFullPath = (FindPosDest != -1) ? DestFilePath + RelDestFileName : DestFilePath + TEXT("\\") + RelDestFileName;
-
-			const TCHAR* _SrcFileFullPath = SrcFileFullPath.GetBuffer();
-			const TCHAR* _DestFileFullPath = DestFileFullPath.GetBuffer();
-
-			// compare size first
-			__int64 SrcFileSize = FileSize(SrcFileFullPath);
-			__int64 DestFileSize = FileSize(DestFileFullPath);
-
-			if (SrcFileSize != DestFileSize)
-				continue;
-
-			if (GetMD5(_SrcFileFullPath, SrcMD5, NULL) != 0)
+			for (auto iter = lowerIter; iter != upperIter; ++iter)
 			{
-				continue;
-			}
+				// 파일 비교
+				TCHAR SrcMD5[2 * MD5LEN + 1] = { 0, };
+				TCHAR DestMD5[2 * MD5LEN + 1] = { 0, };
 
-			if (GetMD5(_DestFileFullPath, DestMD5, NULL) != 0)
-			{
-				continue;
-			}
+				const CString& RelSrcFileName = *iter;
 
-			bool SameMD5 = true;
-			for (int j = 0; j < MD5LEN; ++j)
-			{
-				if (SrcMD5[j] != DestMD5[j])
+				int FindPosSrc = RelSrcFileName.ReverseFind(TEXT('\\'));
+				int FindPosDest = RelDestFileName.ReverseFind(TEXT('\\'));
+
+				CString SrcFileFullPath = (FindPosSrc != -1) ? SrcFilePath + RelSrcFileName : SrcFilePath + TEXT("\\") + RelSrcFileName;
+				CString DestFileFullPath = (FindPosDest != -1) ? DestFilePath + RelDestFileName : DestFilePath + TEXT("\\") + RelDestFileName;
+
+				const TCHAR* _SrcFileFullPath = SrcFileFullPath.GetBuffer();
+				const TCHAR* _DestFileFullPath = DestFileFullPath.GetBuffer();
+
+				// compare size first
+				__int64 SrcFileSize = FileSize(SrcFileFullPath);
+				__int64 DestFileSize = FileSize(DestFileFullPath);
+
+				if (SrcFileSize != DestFileSize)
+					continue;
+
+				if (GetMD5(_SrcFileFullPath, SrcMD5, NULL) != 0)
 				{
-					SameMD5 = false;
-					break;
+					continue;
 				}
-			}
 
-			if (SameMD5)
-			{
-				DupFilesMap.insert(std::pair<CString, CString>(RelDestFileName, *finditer));
-				SendMessage(FindFilesParam->hwnd, WM_USER_FIND_SRC_FILE, FindFilesParam->ProgressBarID, i);
+				if (GetMD5(_DestFileFullPath, DestMD5, NULL) != 0)
+				{
+					continue;
+				}
+
+				bool SameMD5 = true;
+				for (int j = 0; j < MD5LEN; ++j)
+				{
+					if (SrcMD5[j] != DestMD5[j])
+					{
+						SameMD5 = false;
+						break;
+					}
+				}
+
+				if (SameMD5)
+				{
+					DupFilesMap.insert(std::pair<CString, CString>(RelDestFileName, *iter));
+					SendMessage(FindFilesParam->hwnd, WM_USER_FIND_SRC_FILE, FindFilesParam->ProgressBarID, i);
+				}
 			}
 		}
 
